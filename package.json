@@ -1,0 +1,11 @@
+{
+  "name": "construction-team-schedule",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "cd server && npm run seed && cd .. && (npm run dev:server & npm run dev:client)",
+    "seed": "cd server && npm run seed"
+  }
+}

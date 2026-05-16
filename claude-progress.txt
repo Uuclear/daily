@@ -1,0 +1,33 @@
+=== Session: 2026-05-16 ===
+Agent: Claude
+Status: completed
+
+Work Done:
+- Built full-stack construction team schedule management system
+- Backend: Node.js + Express + SQLite (better-sqlite3)
+  - All API routes: /api/tasks, /api/schedule, /api/teams, /api/weather
+  - Database schema: tasks, schedule_events, teams tables
+  - Seed data with 8 tasks, 5 teams, 4 schedule events
+  - Weather API with mock fallback
+- Frontend: React 18 + TypeScript + Ant Design + Vite
+  - Components: TaskPool, WeekCalendar, TaskCard, EventCard, WeatherCard, StatusFilter
+  - Drag-and-drop: dnd-kit integration (task pool to calendar)
+  - Custom hooks: useTasks, useSchedule, useWeather, useTeams
+  - API client: Axios-based
+  - Status workflow: pending → in_progress → report_ready → completed
+  - Weather display with rain warnings
+  - Week navigation (prev/next)
+  - Task creation modal with form validation
+
+Current State:
+- Frontend running at http://localhost:5173
+- Backend running at http://localhost:3001
+- All features implemented per design spec
+- Production build passes (npx vite build)
+
+Next Steps:
+- [Optional] Add PDF export functionality
+- [Optional] Configure real 和风天气 API key via QWEATHER_API_KEY env var
+- [Optional] Add unit/integration tests
+
+=== End Session ===
