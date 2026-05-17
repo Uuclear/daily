@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const dbPath = join(__dirname, '..', '..', 'data', 'construction.db');
-const schemaPath = join(__dirname, 'schema.sql');
+const schemaPath = join(__dirname, '..', '..', 'src', 'db', 'schema.sql');
 
 let db: Database.Database | null = null;
 
@@ -19,7 +19,7 @@ export function getDb(): Database.Database {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
 
-    const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
+    const schema = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'db', 'schema.sql'), 'utf-8');
     db.exec(schema);
 
     // Migration: add color column to tasks table if missing
