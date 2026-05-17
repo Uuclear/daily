@@ -35,6 +35,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
   const [newSummaryItem, setNewSummaryItem] = useState<Record<string, string>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [persons, setPersons] = useState<string[]>([]);
+  const [tick, setTick] = useState(0);
   const [navPos, setNavPos] = useState<{ left: number; top: number }>({ left: window.innerWidth - 280, top: 8 });
   const calendarRef = useRef<HTMLDivElement>(null);
   const navDragging = useRef(false);
@@ -44,6 +45,12 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
   const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
   const SUMMARY_HEIGHT = isMobile ? 100 : 120;
   const PX_PER_HOUR = isMobile ? 38 : 50;
+
+  // Tick every minute to update future/normal transitions
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
   const SCROLL_HOUR = 8;
 
   // Fetch tasks and persons
@@ -385,35 +392,33 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
                     />
                   );
                 })}
-
-                {/* Today timeline */}
-                {todayIndex >= 0 && (
-                  <TodayTimelineOverlay todayIndex={todayIndex} totalDays={totalDays} pxPerHour={PX_PER_HOUR} totalHeight={PX_PER_HOUR * 24} />
-                )}
               </div>
             </div>
 
             {/* Daily Summaries Row */}
-            <div style={{ display: 'flex', borderTop: '1px solid #f0f0f0', background: '#fafbfc', height: SUMMARY_HEIGHT, flexShrink: 0 }}>
+            <div style={{ display: 'flex', borderTop: '1px solid #f0f0f0', background: '#fafbfc', flexShrink: 0, maxHeight: 4 * 22 }}>
               <div style={{ width: TIME_AXIS_WIDTH, flexShrink: 0, background: '#fafbfc', borderRight: '1px solid #f0f0f0' }} />
               {visibleDates.map((date, idx) => {
                 initSummaryItems(date);
                 const items = summaryItems[date] || [];
+                const isFutureDate = date > today;
                 return (
-                  <div key={date} style={{ flex: 1, borderRight: idx < totalDays - 1 ? '1px solid #f0f0f0' : 'none', padding: '4px 6px', overflowY: 'auto' }}>
-                    {items.map((item, i) => (
+                  <div key={date} style={{ flex: 1, borderRight: idx < totalDays - 1 ? '1px solid #f0f0f0' : 'none', padding: '2px 6px', overflowY: 'auto' }}>
+                    {isFutureDate ? null : items.map((item, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2, fontSize: 10 }}>
                         <span style={{ color: '#1890ff', fontSize: 8 }}>•</span>
-                        <span style={{ flex: 1 }}>{item}</span>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item}</span>
                         <Popconfirm title="确认删除？" onConfirm={() => handleRemoveSummaryItem(date, i)}>
                           <Button size="small" type="text" style={{ padding: 0, height: 'auto', fontSize: 10, color: '#ccc' }}>×</Button>
                         </Popconfirm>
                       </div>
                     ))}
-                    <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                      <Input size="small" placeholder="添加..." value={newSummaryItem[date] || ''} onChange={(e) => setNewSummaryItem(prev => ({ ...prev, [date]: e.target.value }))} onPressEnter={() => handleAddSummaryItem(date)} style={{ fontSize: 10, flex: 1 }} />
-                      <Button size="small" type="link" style={{ padding: 0, height: 'auto', fontSize: 10 }} onClick={() => handleAddSummaryItem(date)}>+</Button>
-                    </div>
+                    {isFutureDate ? null : (
+                      <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+                        <Input size="small" placeholder="添加..." value={newSummaryItem[date] || ''} onChange={(e) => setNewSummaryItem(prev => ({ ...prev, [date]: e.target.value }))} onPressEnter={() => handleAddSummaryItem(date)} style={{ fontSize: 10, flex: 1 }} />
+                        <Button size="small" type="link" style={{ padding: 0, height: 'auto', fontSize: 10 }} onClick={() => handleAddSummaryItem(date)}>+</Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -642,6 +647,32 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
           雨天户外作业提醒
         </div>
       )}
+      {/* Future time overlay - today's future hours */}
+      {isToday && (() => {
+        const now = new Date();
+        const currentHour = now.getHours() + now.getMinutes() / 60;
+        return (
+          <div style={{
+            position: 'absolute',
+            left: 0, right: 0,
+            top: currentHour * pxPerHour,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.10)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }} />
+        );
+      })()}
+      {/* Future date overlay - full column dark */}
+      {!isToday && date > localDateString(new Date()) && (
+        <div style={{
+          position: 'absolute',
+          left: 0, right: 0, top: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.06)',
+          pointerEvents: 'none',
+          zIndex: 1,
+        }} />
+      )}
       {events.map(event => {
         const [startH, startM] = event.start_time.split(':').map(Number);
         const [endH, endM] = event.end_time.split(':').map(Number);
@@ -649,6 +680,11 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
         const endVal = endH + endM / 60;
         const topPx = startVal * pxPerHour;
         const heightPx = Math.max(28, (endVal - startVal) * pxPerHour);
+
+        const now = new Date();
+        const currentHour = now.getHours() + now.getMinutes() / 60;
+        const todayLocal = localDateString(now);
+        const isFuture = date > todayLocal || (date === todayLocal && startVal > currentHour);
 
         return (
           <div
@@ -663,7 +699,11 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
               zIndex: 5,
             }}
           >
-            <EventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
+            {isFuture ? (
+              <FutureEventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
+            ) : (
+              <EventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
+            )}
           </div>
         );
       })}
@@ -671,32 +711,42 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
   );
 }
 
-function TodayTimelineOverlay({ todayIndex, totalDays, pxPerHour, totalHeight }: { todayIndex: number; totalDays: number; pxPerHour: number; totalHeight: number }) {
-  const now = new Date();
-  const hours = now.getHours() + now.getMinutes() / 60;
-  const topPx = hours * pxPerHour;
-  if (topPx > totalHeight) return null;
-
-  const colLeftPercent = (todayIndex / totalDays) * 100;
-  const colWidthPercent = 100 / totalDays;
-
+/** Future event card - centered "计划" badge */
+function FutureEventCard({ event, onDelete, onEdit, isMobile }: {
+  event: ScheduleEvent;
+  onDelete?: (id: string) => void;
+  onEdit?: (event: ScheduleEvent) => void;
+  isMobile?: boolean;
+}) {
   return (
     <div
+      onContextMenu={(e) => { e.preventDefault(); onEdit?.(event); }}
       style={{
-        position: 'absolute',
-        top: topPx,
-        left: `${colLeftPercent}%`,
-        width: `${colWidthPercent}%`,
-        height: 0,
-        pointerEvents: 'none',
-        zIndex: 20,
+        background: 'rgba(80, 80, 80, 0.15)',
+        border: '2px solid rgba(80, 80, 80, 0.30)',
+        borderRadius: 10,
+        padding: '4px 6px',
+        marginBottom: 4,
+        cursor: 'context-menu',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        height: '100%',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
       }}
     >
-      <div style={{ position: 'absolute', left: 0, right: 0, display: 'flex', alignItems: 'center' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4d4f', flexShrink: 0, marginLeft: 2 }} />
-        <div style={{ flex: 1, height: 2, background: '#ff4d4f', opacity: 0.6 }} />
+      <div style={{ fontSize: isMobile ? 14 : 18, color: 'rgba(60, 60, 60, 0.7)', fontWeight: 700, letterSpacing: 4 }}>
+        计划
       </div>
-      <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: '50%', background: '#ff4d4f' }} />
+      <div style={{ fontSize: isMobile ? 9 : 11, color: 'rgba(80, 80, 80, 0.6)', marginTop: 2, textAlign: 'center', fontWeight: 500 }}>
+        {event.title}
+      </div>
+      <div style={{ fontSize: 9, color: 'rgba(120, 120, 120, 0.5)', marginTop: 1 }}>
+        {event.start_time}-{event.end_time}
+      </div>
     </div>
   );
 }
