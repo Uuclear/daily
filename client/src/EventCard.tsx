@@ -1,5 +1,5 @@
 import { Button, Popconfirm } from 'antd';
-import { DeleteOutlined, UserOutlined } from '@ant-design/icons';
+import { DeleteOutlined, UserOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import type { ScheduleEvent, Task } from './types/models';
 
 interface EventCardProps {
@@ -139,13 +139,23 @@ export function EventCard({ event, onDelete, onEdit, isMobile = false, taskColor
           {event.work_content || event.title}
         </div>
 
-        {/* 负责人 */}
-        {event.assigned_team && (
+        {/* 负责人 + 地点 */}
+        {(event.assigned_team || event.location) && (
           <div style={{
             fontSize: metaFs, color: '#666', fontWeight: 500,
-            display: 'flex', alignItems: 'center', gap: 2,
+            display: 'flex', alignItems: 'center', gap: 6,
+            flexDirection: isMobile ? 'column' : 'row',
           }}>
-            <UserOutlined style={{ fontSize: 9 }} />{event.assigned_team}
+            {event.assigned_team && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <UserOutlined style={{ fontSize: 9 }} />{event.assigned_team}
+              </span>
+            )}
+            {event.location && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <EnvironmentOutlined style={{ fontSize: 9 }} />{event.location}
+              </span>
+            )}
           </div>
         )}
 
