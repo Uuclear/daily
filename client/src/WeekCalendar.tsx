@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
-import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker } from 'antd';
+import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker, Popconfirm } from 'antd';
 import { LeftOutlined, RightOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ScheduleEvent, Task } from './types/models';
 import { WeatherCard } from './WeatherCard';
@@ -107,6 +107,24 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
     const values = await createForm.validateFields();
     const startTime = values.start_time ? values.start_time.format('HH:mm') : '';
     const endTime = values.end_time ? values.end_time.format('HH:mm') : '';
+
+    // Validate end time is after start time
+    if (endTime && endTime <= startTime) {
+      message.error('结束时间必须在开始时间之后');
+      return;
+    }
+
+    // Check for conflicts
+    const conflictCheck = await api.getWeekSchedule();
+    const eventsOnDate = conflictCheck.events[values.date ? values.date.format('YYYY-MM-DD') : ''] || [];
+    for (const ev of eventsOnDate) {
+      const evEnd = ev.end_time || ev.start_time;
+      if (startTime < evEnd && (endTime || startTime) > ev.start_time) {
+        message.error(`时间冲突：与已有日程「${ev.title}」（${ev.start_time}-${evEnd}）重叠`);
+        return;
+      }
+    }
+
     try {
       await addEvent({
         task_id: values.task_id || null,
@@ -154,9 +172,29 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
     const values = await editForm.validateFields();
     const startTime = values.start_time ? values.start_time.format('HH:mm') : '';
     const endTime = values.end_time ? values.end_time.format('HH:mm') : '';
+
+    // Validate end time is after start time
+    if (endTime && endTime <= startTime) {
+      message.error('结束时间必须在开始时间之后');
+      return;
+    }
+
+    // Check for conflicts (exclude current event)
+    const dateVal = values.date ? values.date.format('YYYY-MM-DD') : editingEvent.date;
+    const conflictCheck = await api.getWeekSchedule();
+    const eventsOnDate = conflictCheck.events[dateVal] || [];
+    for (const ev of eventsOnDate) {
+      if (ev.id === editingEvent.id) continue;
+      const evEnd = ev.end_time || ev.start_time;
+      if (startTime < evEnd && (endTime || startTime) > ev.start_time) {
+        message.error(`时间冲突：与已有日程「${ev.title}」（${ev.start_time}-${evEnd}）重叠`);
+        return;
+      }
+    }
+
     try {
       await updateEvent(editingEvent.id, {
-        date: values.date ? values.date.format('YYYY-MM-DD') : editingEvent.date,
+        date: dateVal,
         start_time: startTime,
         end_time: endTime || startTime,
         title: values.title,
@@ -367,7 +405,9 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2, fontSize: 10 }}>
                         <span style={{ color: '#1890ff', fontSize: 8 }}>•</span>
                         <span style={{ flex: 1 }}>{item}</span>
-                        <Button size="small" type="text" style={{ padding: 0, height: 'auto', fontSize: 10, color: '#ccc' }} onClick={() => handleRemoveSummaryItem(date, i)}>×</Button>
+                        <Popconfirm title="确认删除？" onConfirm={() => handleRemoveSummaryItem(date, i)}>
+                          <Button size="small" type="text" style={{ padding: 0, height: 'auto', fontSize: 10, color: '#ccc' }}>×</Button>
+                        </Popconfirm>
                       </div>
                     ))}
                     <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
@@ -506,9 +546,9 @@ function HeaderRow({ dates, today, weatherMap, timeAxisWidth, dayNames, isMobile
             {date === today && <span style={{ color: '#ff4d4f', fontSize: isMobile ? 8 : 10 }}> 今天</span>}
           </div>
           {!isMobile && weatherMap[date] ? <WeatherCard weather={weatherMap[date]} /> : null}
-          {isMobile && weatherMap[date] && weatherMap[date].weather ? (
+          {isMobile && weatherMap[date] ? (
             <div style={{ fontSize: 9, color: '#888', textAlign: 'center', padding: '1px 0' }}>
-              {weatherMap[date].weather}
+              {weatherMap[date].description} {weatherMap[date].tempMin}°/{weatherMap[date].tempMax}°
             </div>
           ) : null}
         </div>
