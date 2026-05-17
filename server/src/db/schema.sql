@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   planned_start_date TEXT,
   deadline TEXT,
   notes TEXT,
+  color TEXT NOT NULL DEFAULT '#3b82f6',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -45,6 +46,18 @@ CREATE TABLE IF NOT EXISTS daily_summaries (
 CREATE TABLE IF NOT EXISTS persons (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS weather_cache (
+  date TEXT NOT NULL,
+  city TEXT NOT NULL,
+  condition TEXT NOT NULL,
+  icon TEXT NOT NULL,
+  temp_min INTEGER NOT NULL,
+  temp_max INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  PRIMARY KEY (date, city)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

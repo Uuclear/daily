@@ -8,6 +8,7 @@ export interface Task {
   planned_start_date: string | null;
   deadline: string | null;
   notes: string;
+  color?: string;
   created_at: string;
   updated_at: string;
 }

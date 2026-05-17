@@ -59,6 +59,10 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
     api.getPersons().then(setPersons).catch(() => setPersons([]));
   }, []);
 
+  // Build task color lookup map
+  const taskColorMap: Record<string, string> = {};
+  tasks.forEach(t => { if (t.color) taskColorMap[t.id] = t.color; });
+
   // Auto-scroll to 8am
   const scrollTargetRef = useRef<number | null>(null);
 
@@ -389,6 +393,8 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
                       onEdit={openEditModal}
                       onDoubleClick={(timeStr) => openCreateModal(date, timeStr)}
                       isMobile={isMobile}
+                      taskColorMap={taskColorMap}
+                      tasks={tasks}
                     />
                   );
                 })}
@@ -405,18 +411,18 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
                 return (
                   <div key={date} style={{ flex: 1, borderRight: idx < totalDays - 1 ? '1px solid #f0f0f0' : 'none', padding: '2px 6px', overflowY: 'auto' }}>
                     {isFutureDate ? null : items.map((item, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2, fontSize: 10 }}>
-                        <span style={{ color: '#1890ff', fontSize: 8 }}>•</span>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2, fontSize: 12 }}>
+                        <span style={{ color: '#1890ff', fontSize: 10 }}>•</span>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item}</span>
                         <Popconfirm title="确认删除？" onConfirm={() => handleRemoveSummaryItem(date, i)}>
-                          <Button size="small" type="text" style={{ padding: 0, height: 'auto', fontSize: 10, color: '#ccc' }}>×</Button>
+                          <Button size="small" type="text" style={{ padding: 0, height: 'auto', fontSize: 12, color: '#ccc' }}>×</Button>
                         </Popconfirm>
                       </div>
                     ))}
                     {isFutureDate ? null : (
                       <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                        <Input size="small" placeholder="添加..." value={newSummaryItem[date] || ''} onChange={(e) => setNewSummaryItem(prev => ({ ...prev, [date]: e.target.value }))} onPressEnter={() => handleAddSummaryItem(date)} style={{ fontSize: 10, flex: 1 }} />
-                        <Button size="small" type="link" style={{ padding: 0, height: 'auto', fontSize: 10 }} onClick={() => handleAddSummaryItem(date)}>+</Button>
+                        <Input size="small" placeholder="添加..." value={newSummaryItem[date] || ''} onChange={(e) => setNewSummaryItem(prev => ({ ...prev, [date]: e.target.value }))} onPressEnter={() => handleAddSummaryItem(date)} style={{ fontSize: 12, flex: 1 }} />
+                        <Button size="small" type="link" style={{ padding: 0, height: 'auto', fontSize: 12 }} onClick={() => handleAddSummaryItem(date)}>+</Button>
                       </div>
                     )}
                   </div>
@@ -439,7 +445,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
         maskClosable={false}
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入标题' }]}>
+          <Form.Item name="title" label="工作内容" rules={[{ required: true, message: '请输入工作内容' }]}>
             <Input placeholder="如：基础拆除" />
           </Form.Item>
           <Form.Item name="date" label="日期" rules={[{ required: true }]}>
@@ -458,16 +464,10 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
               {tasks.map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
             </Select>
           </Form.Item>
-          <Form.Item name="work_content" label="工作内容">
-            <TextArea rows={2} placeholder="具体工作内容" />
-          </Form.Item>
           <Form.Item name="assigned_team" label="负责人">
             <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
               {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
-          </Form.Item>
-          <Form.Item name="location" label="施工部位">
-            <Input placeholder="如：一层A区" />
           </Form.Item>
           <Form.Item name="is_milestone" label="关键节点" valuePropName="checked">
             <Switch />
@@ -490,7 +490,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
         maskClosable={false}
       >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入标题' }]}>
+          <Form.Item name="title" label="工作内容" rules={[{ required: true, message: '请输入工作内容' }]}>
             <Input placeholder="如：基础拆除" />
           </Form.Item>
           <Form.Item name="date" label="日期" rules={[{ required: true }]}>
@@ -509,16 +509,10 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
               {tasks.map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
             </Select>
           </Form.Item>
-          <Form.Item name="work_content" label="工作内容">
-            <TextArea rows={2} placeholder="具体工作内容" />
-          </Form.Item>
           <Form.Item name="assigned_team" label="负责人">
             <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
               {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
-          </Form.Item>
-          <Form.Item name="location" label="施工部位">
-            <Input placeholder="如：一层A区" />
           </Form.Item>
           <Form.Item name="is_milestone" label="关键节点" valuePropName="checked">
             <Switch />
@@ -546,9 +540,9 @@ function HeaderRow({ dates, today, weatherMap, timeAxisWidth, dayNames, isMobile
       <div style={{ width: timeAxisWidth, flexShrink: 0, background: '#fafbfc' }} />
       {dates.map((date, idx) => (
         <div key={date} style={{ flex: 1, borderRight: idx < dates.length - 1 ? '1px solid #e8e8e8' : 'none' }}>
-          <div style={{ fontWeight: 600, fontSize: isMobile ? 11 : 13, textAlign: 'center', padding: isMobile ? '4px 0' : '6px 0', color: date === today ? '#1890ff' : '#1a1a2e' }}>
-            {dayNames[idx]} <span style={{ color: '#999', fontWeight: 400, fontSize: isMobile ? 9 : 11 }}>{formatDateShort(date)}</span>
-            {date === today && <span style={{ color: '#ff4d4f', fontSize: isMobile ? 8 : 10 }}> 今天</span>}
+          <div style={{ fontWeight: 600, fontSize: isMobile ? 12 : 14, textAlign: 'center', padding: isMobile ? '4px 0' : '6px 0', color: date === today ? '#1890ff' : '#1a1a2e' }}>
+            {dayNames[idx]} <span style={{ color: '#999', fontWeight: 400, fontSize: isMobile ? 10 : 12 }}>{formatDateShort(date)}</span>
+            {date === today && <span style={{ color: '#ff4d4f', fontSize: isMobile ? 9 : 11 }}> 今天</span>}
           </div>
           {!isMobile && weatherMap[date] ? <WeatherCard weather={weatherMap[date]} /> : null}
           {isMobile && weatherMap[date] ? (
@@ -593,7 +587,7 @@ function TimeAxis({ totalHours, pxPerHour, timeAxisWidth }: { totalHours: number
   );
 }
 
-function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, totalHours, onDelete, onEdit, onDoubleClick, isMobile }: {
+function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, totalHours, onDelete, onEdit, onDoubleClick, isMobile, taskColorMap, tasks }: {
   date: string;
   events: ScheduleEvent[];
   isRainy: boolean;
@@ -605,6 +599,8 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
   onEdit: (event: ScheduleEvent) => void;
   onDoubleClick: (timeStr: string) => void;
   isMobile: boolean;
+  taskColorMap: Record<string, string>;
+  tasks: Task[];
 }) {
   const handleDblClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -699,11 +695,7 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
               zIndex: 5,
             }}
           >
-            {isFuture ? (
-              <FutureEventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
-            ) : (
-              <EventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
-            )}
+            <EventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} taskColor={event.task_id ? taskColorMap[event.task_id] : undefined} tasks={tasks} isFuture={isFuture} />
           </div>
         );
       })}
@@ -711,42 +703,5 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
   );
 }
 
-/** Future event card - centered "计划" badge */
-function FutureEventCard({ event, onDelete, onEdit, isMobile }: {
-  event: ScheduleEvent;
-  onDelete?: (id: string) => void;
-  onEdit?: (event: ScheduleEvent) => void;
-  isMobile?: boolean;
-}) {
-  return (
-    <div
-      onContextMenu={(e) => { e.preventDefault(); onEdit?.(event); }}
-      style={{
-        background: 'rgba(80, 80, 80, 0.15)',
-        border: '2px solid rgba(80, 80, 80, 0.30)',
-        borderRadius: 10,
-        padding: '4px 6px',
-        marginBottom: 4,
-        cursor: 'context-menu',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        height: '100%',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <div style={{ fontSize: isMobile ? 14 : 18, color: 'rgba(60, 60, 60, 0.7)', fontWeight: 700, letterSpacing: 4 }}>
-        计划
-      </div>
-      <div style={{ fontSize: isMobile ? 9 : 11, color: 'rgba(80, 80, 80, 0.6)', marginTop: 2, textAlign: 'center', fontWeight: 500 }}>
-        {event.title}
-      </div>
-      <div style={{ fontSize: 9, color: 'rgba(120, 120, 120, 0.5)', marginTop: 1 }}>
-        {event.start_time}-{event.end_time}
-      </div>
-    </div>
-  );
-}
+
+

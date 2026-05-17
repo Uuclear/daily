@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { getDb } from '../db/init';
 
 const router = Router();
 
@@ -68,37 +69,100 @@ const wmoCodeMap: Record<number, { condition: string; icon: string; description:
   99: { condition: 'heavy_rain', icon: '⛈', description: '强雷暴冰雹' },
 };
 
+/** Return local date string YYYY-MM-DD in Asia/Shanghai */
+function todayLocal(): string {
+  const d = new Date();
+  // Asia/Shanghai = UTC+8
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  const shanghai = new Date(utc + 8 * 3600000);
+  return `${shanghai.getFullYear()}-${String(shanghai.getMonth() + 1).padStart(2, '0')}-${String(shanghai.getDate()).padStart(2, '0')}`;
+}
+
 router.get('/', async (_req: Request, res: Response) => {
   const { city = '上海', days = '7' } = _req.query;
+  const cityName = city as string;
   const numDays = parseInt(days as string, 10);
 
-  const cityName = city as string;
   const coords = cityCoords[cityName];
+  if (!coords) return res.json([]);
 
-  if (!coords) {
-    // Unknown city, return empty
-    return res.json([]);
+  const db = getDb();
+  const today = todayLocal();
+
+  // 1. Try to serve from cache (all requested dates must exist)
+  const dateRange: string[] = [];
+  for (let i = 0; i < numDays; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    dateRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   }
 
+  const placeholders = dateRange.map(() => '?').join(',');
+  const cached = db.prepare(
+    `SELECT date, city, condition, icon, temp_min, temp_max, description FROM weather_cache
+     WHERE city = ? AND date IN (${placeholders})
+     ORDER BY date ASC`
+  ).all(cityName, ...dateRange);
+
+  // If we have all dates cached, return them immediately
+  if (cached.length === dateRange.length) {
+    const result: WeatherResult[] = cached.map((row: any) => ({
+      date: row.date,
+      city: cityName,
+      condition: row.condition,
+      icon: row.icon,
+      tempMin: row.temp_min,
+      tempMax: row.temp_max,
+      description: row.description,
+      outdoorWarning: ['rain', 'heavy_rain', 'snow', 'fog'].includes(row.condition),
+    }));
+    return res.json(result);
+  }
+
+  // 2. Cache miss for some dates → fetch from API and upsert
   try {
     const response = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${coords[0]}&longitude=${coords[1]}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia/Shanghai&forecast_days=${numDays}`
     );
 
     if (!response.ok) {
+      // API failed — return whatever we have from cache
+      if (cached.length > 0) {
+        const result: WeatherResult[] = cached.map((row: any) => ({
+          date: row.date,
+          city: cityName,
+          condition: row.condition,
+          icon: row.icon,
+          tempMin: row.temp_min,
+          tempMax: row.temp_max,
+          description: row.description,
+          outdoorWarning: ['rain', 'heavy_rain', 'snow', 'fog'].includes(row.condition),
+        }));
+        return res.json(result);
+      }
       return res.json([]);
     }
 
     const data = await response.json() as any;
+    if (!data.daily || !data.daily.time) return res.json([]);
 
-    if (!data.daily || !data.daily.time) {
-      return res.json([]);
-    }
+    const now = new Date().toISOString();
+    const upsert = db.prepare(
+      `INSERT INTO weather_cache (date, city, condition, icon, temp_min, temp_max, description, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date, city) DO UPDATE SET
+         condition = excluded.condition,
+         icon = excluded.icon,
+         temp_min = excluded.temp_min,
+         temp_max = excluded.temp_max,
+         description = excluded.description,
+         fetched_at = excluded.fetched_at`
+    );
 
     const forecast: WeatherResult[] = data.daily.time.map((dateStr: string, i: number) => {
       const wmoCode = data.daily.weather_code[i];
       const mapped = wmoCodeMap[wmoCode] || { condition: 'cloudy', icon: '⛅', description: '多云' };
-      return {
+      const entry: WeatherResult = {
         date: dateStr,
         city: cityName,
         condition: mapped.condition,
@@ -108,11 +172,27 @@ router.get('/', async (_req: Request, res: Response) => {
         description: mapped.description,
         outdoorWarning: ['rain', 'heavy_rain', 'snow', 'fog'].includes(mapped.condition),
       };
+      upsert.run(dateStr, cityName, mapped.condition, mapped.icon, entry.tempMin, entry.tempMax, mapped.description, now);
+      return entry;
     });
 
     res.json(forecast);
   } catch (e) {
     console.error('Weather API error:', e);
+    // Fallback to cache
+    if (cached.length > 0) {
+      const result: WeatherResult[] = cached.map((row: any) => ({
+        date: row.date,
+        city: cityName,
+        condition: row.condition,
+        icon: row.icon,
+        tempMin: row.temp_min,
+        tempMax: row.temp_max,
+        description: row.description,
+        outdoorWarning: ['rain', 'heavy_rain', 'snow', 'fog'].includes(row.condition),
+      }));
+      return res.json(result);
+    }
     res.json([]);
   }
 });

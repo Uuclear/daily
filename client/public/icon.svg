@@ -1,7 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#1890ff"/>
-  <text x="256" y="200" text-anchor="middle" fill="white" font-family="sans-serif" font-size="120" font-weight="bold">待办</text>
-  <rect x="120" y="240" width="272" height="40" rx="20" fill="rgba(255,255,255,0.3)"/>
-  <rect x="120" y="300" width="200" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <rect x="120" y="360" width="150" height="40" rx="20" fill="rgba(255,255,255,0.1)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#07C160"/>
+      <stop offset="100%" stop-color="#06AD56"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="100" ry="100" fill="url(#g)"/>
+  <!-- Top-left chat bubble -->
+  <path d="M100 160 Q100 120 140 120 L320 120 Q360 120 360 160 L360 260 Q360 300 320 300 L200 300 L160 340 L160 300 Q140 300 120 280 Q100 260 100 260 Z" fill="white" opacity="0.95"/>
+  <!-- Top bubble dots -->
+  <circle cx="190" cy="190" r="18" fill="#07C160"/>
+  <circle cx="230" cy="190" r="18" fill="#07C160"/>
+  <circle cx="270" cy="190" r="18" fill="#07C160"/>
+  <circle cx="190" cy="230" r="18" fill="#07C160"/>
+  <circle cx="230" cy="230" r="18" fill="#07C160"/>
+  <!-- Bottom-right chat bubble -->
+  <path d="M200 260 Q200 220 240 220 L420 220 Q460 220 460 260 L460 380 Q460 420 420 420 L300 420 L260 460 L260 420 Q220 420 200 400 Q180 380 180 380 Z" fill="white" opacity="0.8"/>
+  <!-- Bottom bubble dots -->
+  <circle cx="290" cy="310" r="18" fill="#07C160"/>
+  <circle cx="330" cy="310" r="18" fill="#07C160"/>
+  <circle cx="370" cy="310" r="18" fill="#07C160"/>
+  <circle cx="290" cy="350" r="18" fill="#07C160"/>
+  <circle cx="330" cy="350" r="18" fill="#07C160"/>
 </svg>

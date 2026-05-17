@@ -61,7 +61,7 @@ server {
         proxy_pass http://localhost:3001/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded-for;
     }
 }
 ```
@@ -192,6 +192,8 @@ cp server/data/construction.db server/data/construction.db.bak
 
 恢复时替换即可。
 
+详细备份教程见 [DATABASE_BACKUP.md](DATABASE_BACKUP.md)
+
 ---
 
 ## 常见故障排查
@@ -202,3 +204,4 @@ cp server/data/construction.db server/data/construction.db.bak
 | 任务删除失败 | FK 约束错误 | 确认代码已修复删除顺序 |
 | 天气不显示 | API 请求失败 | 检查网络连接，Open-Meteo 需外网 |
 | 端口冲突 | 3001/5173 被占用 | 修改 `server/src/server.ts` 的 PORT 或 `client/vite.config.ts` |
+| PWA 无法安装 | 非 HTTPS | 本地开发不支持 PWA install prompt，部署后 HTTPS 即可 |

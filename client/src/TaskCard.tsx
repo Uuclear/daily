@@ -1,4 +1,4 @@
-import { Card, Tag, Button, Space, Popconfirm, Slider, Modal, Form, Input, message, DatePicker } from 'antd';
+import { Button, Space, Popconfirm, Slider, Modal, Form, Input, message, DatePicker } from 'antd';
 import { DeleteOutlined, CheckOutlined, UndoOutlined, EditOutlined, EnvironmentOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { Task } from './types/models';
 import { useState } from 'react';
@@ -45,30 +45,73 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
 
   return (
     <>
-    <Card
+    <div
       style={{
-        borderLeft: `4px solid ${config.color}`,
-        borderColor: config.borderColor,
-        background: '#fff',
-        marginBottom: 4,
-        ...(task.status === 'completed' ? { opacity: 0.6 } : {}),
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        borderRadius: 8,
+        background: 'linear-gradient(145deg, #fefefe 0%, #faf9f6 50%, #f5f3ef 100%)',
+        borderRadius: 10,
+        padding: '10px 14px',
+        marginBottom: 6,
+        ...(task.status === 'completed' ? { opacity: 0.55 } : {}),
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
+        border: '1px solid #e8e4de',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
       }}
-      size="small"
-      bodyStyle={{ padding: '8px 12px' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
-          <strong style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.project_name}</strong>
-          {task.location && <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}><EnvironmentOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.location}</span>}
-          {task.assigned_team && <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}><UserOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.assigned_team}</span>}
-        </div>
-        <Tag color={config.color} style={{ fontSize: 10, padding: '0 6px', lineHeight: '18px', borderRadius: 4, flexShrink: 0, marginLeft: 4 }}>{config.label}</Tag>
+      {/* 左侧任务色条 - 与任务颜色一致 */}
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+        background: `linear-gradient(180deg, ${task.color || '#3b82f6'}, ${(task.color || '#3b82f6')}99)`,
+        borderRadius: '10px 0 0 10px',
+      }} />
+
+      {/* 状态标签 - 右上角 */}
+      <div style={{
+        position: 'absolute', top: 8, right: 8,
+        fontSize: 9, color: config.color, fontWeight: 700, letterSpacing: 1,
+        background: config.color + '10',
+        borderRadius: 4, padding: '2px 8px',
+      }}>
+        {config.label}
       </div>
+
+      {/* 标题行 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8, paddingRight: 60, minWidth: 0 }}>
+        <strong style={{
+          fontSize: 14, color: '#2c2c2c', whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis',
+          fontWeight: 700, letterSpacing: 0.5,
+        }}>{task.project_name}</strong>
+      </div>
+
+      {/* 地点 + 负责人 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, paddingLeft: 8, flexWrap: 'wrap' }}>
+        {task.location && (
+          <span style={{
+            fontSize: 11, color: '#777',
+            background: 'rgba(0,0,0,0.04)', borderRadius: 4,
+            padding: '2px 8px', whiteSpace: 'nowrap',
+          }}>
+            <EnvironmentOutlined style={{ marginRight: 3, fontSize: 10, opacity: 0.7 }} />{task.location}
+          </span>
+        )}
+        {task.assigned_team && (
+          <span style={{
+            fontSize: 11, color: '#555', fontWeight: 500,
+            background: '#f5f2eb', border: '1px solid #e0dcd5',
+            borderRadius: 5, padding: '2px 8px',
+            whiteSpace: 'nowrap',
+          }}>
+            <UserOutlined style={{ marginRight: 3, fontSize: 10 }} />{task.assigned_team}
+          </span>
+        )}
+      </div>
+
+      {/* 进度条 */}
       {task.status === 'in_progress' && (
-        <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: '#888', minWidth: 28 }}>进度</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8, paddingRight: 8 }}>
+          <span style={{ fontSize: 10, color: '#999', minWidth: 28 }}>进度</span>
           <Slider
             value={displayValue}
             min={0}
@@ -77,53 +120,77 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
             onChangeComplete={(val) => onProgressChange?.(task.id, val)}
             tooltip={{ formatter: (v) => `${v}%` }}
             style={{ flex: 1, margin: 0 }}
-            trackStyle={{ backgroundColor: config.color }}
-            railStyle={{ backgroundColor: config.color + '22' }}
           />
-          <span style={{ fontSize: 10, color: config.color, minWidth: 30, textAlign: 'right', fontWeight: 600 }}>{displayValue}%</span>
+          <span style={{ fontSize: 11, color: config.color, minWidth: 36, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{displayValue}%</span>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space size={4}>
-          {task.planned_start_date && <span style={{ fontSize: 10, color: '#666' }}><CalendarOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.planned_start_date}</span>}
-          {task.deadline && <span style={{ fontSize: 10, color: '#ff4d4f' }}>截止: {task.deadline}</span>}
-        </Space>
+      {/* 底部信息行 */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        paddingLeft: 8, paddingRight: 8,
+        borderTop: '1px solid #edeae5', paddingTop: 6, marginTop: 2,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', overflow: 'hidden' }}>
+          {task.planned_start_date && (
+            <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
+              <CalendarOutlined style={{ marginRight: 3, fontSize: 10, opacity: 0.7 }} />{task.planned_start_date}
+            </span>
+          )}
+          {task.deadline && (
+            <span style={{ fontSize: 10, color: '#d46b6b', whiteSpace: 'nowrap', fontWeight: 500 }}>
+              截止 {task.deadline}
+            </span>
+          )}
+          {task.notes && (
+            <span style={{
+              fontSize: 10, color: '#aaa', maxWidth: 100,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              fontStyle: 'italic',
+            }}>
+              {task.notes}
+            </span>
+          )}
+        </div>
 
         <Space size={0}>
           {onEdit && (
-            <Button type="link" size="small" style={{ padding: '0 4px', height: 'auto', fontSize: 11 }} onClick={() => { editForm.setFieldsValue({ project_name: task.project_name, location: task.location, assigned_team: task.assigned_team, planned_start_date: task.planned_start_date ? dayjs(task.planned_start_date) : null, deadline: task.deadline ? dayjs(task.deadline) : null, notes: task.notes || '' }); setEditModalOpen(true); }}>
+            <Button type="text" size="small" style={{ padding: '2px 4px', height: 22, fontSize: 11, color: '#999', borderRadius: 4 }}
+              onClick={() => { editForm.setFieldsValue({ project_name: task.project_name, location: task.location, assigned_team: task.assigned_team, planned_start_date: task.planned_start_date ? dayjs(task.planned_start_date) : null, deadline: task.deadline ? dayjs(task.deadline) : null, notes: task.notes || '' }); setEditModalOpen(true); }}>
               <EditOutlined style={{ fontSize: 11 }} />
             </Button>
           )}
           {task.status === 'entrusted' && onUpdateStatus && (
-            <Button type="link" size="small" style={{ padding: '0 4px', height: 'auto', fontSize: 11 }} onClick={() => onUpdateStatus(task.id, 'in_progress')}>
+            <Button type="text" size="small" style={{ padding: '2px 6px', height: 22, fontSize: 10, color: config.color, borderRadius: 4 }}
+              onClick={() => onUpdateStatus(task.id, 'in_progress')}>
               开始
             </Button>
           )}
           {task.status === 'in_progress' && onUpdateStatus && (
-            <Button type="link" size="small" style={{ padding: '0 4px', height: 'auto', fontSize: 11 }} onClick={() => onUpdateStatus(task.id, 'reporting')}>
+            <Button type="text" size="small" style={{ padding: '2px 4px', height: 22, fontSize: 11, color: config.color, borderRadius: 4 }}
+              onClick={() => onUpdateStatus(task.id, 'reporting')}>
               <CheckOutlined />
             </Button>
           )}
           {task.status === 'reporting' && onUpdateStatus && (
-            <Button type="link" size="small" style={{ padding: '0 4px', height: 'auto', fontSize: 11 }} onClick={() => onUpdateStatus(task.id, 'completed')}>
+            <Button type="text" size="small" style={{ padding: '2px 6px', height: 22, fontSize: 10, color: config.color, borderRadius: 4 }}
+              onClick={() => onUpdateStatus(task.id, 'completed')}>
               归档
             </Button>
           )}
           {task.status === 'completed' && onUpdateStatus && (
             <Popconfirm title="确认退回？" onConfirm={() => onUpdateStatus(task.id, 'entrusted')}>
-              <Button type="link" size="small" style={{ padding: '0 4px', height: 'auto', fontSize: 11 }}><UndoOutlined /></Button>
+              <Button type="text" size="small" style={{ padding: '2px 4px', height: 22, fontSize: 11, color: '#999', borderRadius: 4 }}><UndoOutlined /></Button>
             </Popconfirm>
           )}
           {onDelete && (
             <Popconfirm title="确认删除？" onConfirm={() => onDelete(task.id)}>
-              <Button type="link" size="small" danger style={{ padding: '0 4px', height: 'auto', fontSize: 11 }}><DeleteOutlined /></Button>
+              <Button type="text" size="small" danger style={{ padding: '2px 4px', height: 22, fontSize: 11, borderRadius: 4 }}><DeleteOutlined /></Button>
             </Popconfirm>
           )}
         </Space>
       </div>
-    </Card>
+    </div>
 
     <Modal
       title="编辑任务"

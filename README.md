@@ -1,8 +1,6 @@
-# 建设工程团队待办与周历管理系统
+# 检测日程
 
 建设工程项目团队的待办任务与施工周历管理应用。左侧为项目任务池，右侧为可视化施工周历，支持任务状态流转、日程时间冲突检测、天气预警等功能。
-
-![预览](docs/screenshot.png)
 
 ## 功能特性
 
@@ -11,21 +9,32 @@
 - **状态流转**：委托 → 进行中 → 报告出具 → 任务结束
 - **进度条**：拖拽调整任务进度，实时更新
 - **分类筛选**：按状态快速过滤任务
+- **任务颜色**：每个任务自动分配随机颜色，关联的日程事件自动同步该颜色
+- **纸质卡片UI**：暖色渐变纸张质感，左侧色条标识任务归属
 
 ### 日程管理
 - **周历视图**：00:00-24:00 时间轴，可视化展示每日日程
 - **双击添加**：在日历任意位置双击，自动填入点击时间
 - **冲突检测**：添加/编辑日程时自动检测时间重叠并提示
 - **右键编辑**：右键点击事件卡片快速编辑
-- **拖拽导航**：悬浮导航栏可自由拖动
+- **悬浮导航**：桌面端可自由拖动周/日切换导航
+- **未来日程**：未来时间的日程以暗色卡片 + "计划"封条显示，到达时间后自动变为正常卡片
+- **关联任务**：日程事件可关联任务，自动继承任务颜色和样式
 
 ### 天气集成
 - **7日预报**：基于 Open-Meteo API 的免费天气预报
 - **雨天提醒**：雨天自动显示"雨天户外作业提醒"
 - **城市支持**：支持国内 20+ 主要城市
+- **智能缓存**：天气数据持久化存储到数据库，每天仅调用一次 API，历史天气可追溯
 
 ### 每日总结
-- 底部每日总结区域，支持快速添加/删除工作记录
+- 底部每日总结区域，最多显示 4 行，支持快速添加/删除工作记录
+
+### 移动端适配
+- **响应式布局**：<768px 时自动切换为上下布局（任务池在上、日历在下）
+- **周一至周五**：移动端默认仅显示工作日
+- **PWA 支持**：可添加到手机主屏幕，离线可用
+- **紧凑 UI**：移动端日历时间轴和字体自动缩小
 
 ## 技术栈
 
@@ -35,44 +44,6 @@
 | 后端 | Node.js + Express + better-sqlite3 |
 | 数据库 | SQLite (文件型数据库) |
 | 天气API | Open-Meteo (免费，无需 API Key) |
-
-## 项目结构
-
-```
-daily/
-├── client/                  # 前端项目
-│   ├── src/
-│   │   ├── api/             # API 请求封装
-│   │   ├── hooks/           # React 自定义 hooks
-│   │   ├── pages/Dashboard/ # 主页面（左右分栏布局）
-│   │   ├── types/           # TypeScript 类型定义
-│   │   ├── App.tsx          # 根组件
-│   │   ├── WeekCalendar.tsx # 周历组件（核心）
-│   │   ├── EventCard.tsx    # 日程事件卡片
-│   │   ├── TaskPool.tsx     # 任务池组件
-│   │   ├── TaskCard.tsx     # 任务卡片（含编辑功能）
-│   │   ├── StatusFilter.tsx # 状态筛选器
-│   │   └── WeatherCard.tsx  # 天气卡片
-│   ├── index.html
-│   ├── vite.config.ts       # Vite 配置（含 API 代理）
-│   └── package.json
-├── server/                  # 后端项目
-│   ├── src/
-│   │   ├── db/
-│   │   │   ├── init.ts      # 数据库初始化
-│   │   │   ├── schema.sql   # 数据库表结构
-│   │   │   └── seed.ts      # 种子数据
-│   │   ├── routes/
-│   │   │   ├── tasks.ts     # 任务 CRUD
-│   │   │   ├── schedule.ts  # 日程 CRUD + 冲突检测
-│   │   │   ├── teams.ts     # 团队管理
-│   │   │   ├── persons.ts   # 人员管理
-│   │   │   └── weather.ts   # 天气代理（Open-Meteo）
-│   │   ├── app.ts           # Express 应用
-│   │   └── server.ts        # 启动入口
-│   └── package.json
-└── README.md
-```
 
 ## 快速开始
 
@@ -102,47 +73,54 @@ cd ../client && npm run dev
 前端访问 http://localhost:5173
 后端 API http://localhost:3001
 
-### 构建生产版本
+### 一键启动（开发模式）
 
 ```bash
-# 构建前端
-cd client && npm run build
-
-# 构建后端
-cd ../server && npm run build
-
-# 启动生产模式后端
-cd ../server && npm start
+npm run dev
 ```
 
-## 数据库表结构
+## 使用说明
 
-### tasks（任务表）
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | TEXT PK | 任务 ID |
-| project_name | TEXT | 项目名称 |
-| location | TEXT | 施工地点 |
-| assigned_team | TEXT | 负责人 |
-| status | TEXT | entrusted/in_progress/reporting/completed |
-| progress | INTEGER | 进度 0-100 |
-| planned_start_date | TEXT | 计划开始日期 |
-| deadline | TEXT | 截止日期 |
+### 任务池
 
-### schedule_events（日程表）
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | TEXT PK | 事件 ID |
-| task_id | TEXT FK → tasks(id) | 关联任务 |
-| date | TEXT | 日期 (YYYY-MM-DD) |
-| start_time | TEXT | 开始时间 (HH:MM) |
-| end_time | TEXT | 结束时间 (HH:MM) |
-| title | TEXT | 事件标题 |
-| work_content | TEXT | 工作内容 |
-| is_milestone | INTEGER | 是否关键节点 |
+1. **新建任务**：点击右上角 "新建任务" 按钮
+2. **填写信息**：项目名称（必填）、施工地点（必填）、负责人、计划开始/结束日期、备注
+3. **状态流转**：
+   - 委托 → 点击"开始" → 进行中
+   - 进行中 → 点击 ✓ → 报告出具
+   - 报告出具 → 点击"归档" → 任务结束
+   - 已完成 → 点击撤销 → 退回委托
+4. **进度更新**：拖拽进度条，自动保存
+5. **删除任务**：点击删除图标，关联的日程会一并删除
 
-### persons / daily_summaries / teams
-详见 `server/src/db/schema.sql`
+### 日程管理
+
+1. **添加日程**：
+   - 双击日历中任意时间位置
+   - 或点击导航栏 "+" 按钮
+2. **编辑日程**：右键点击事件卡片，或点击卡片上的编辑按钮
+3. **删除日程**：点击卡片右上角删除图标，确认后删除
+4. **关联任务**：在添加/编辑表单中选择关联任务，日程会自动继承任务颜色
+5. **关键节点**：勾选"关键节点"标记里程碑事件
+6. **冲突检测**：时间重叠时自动弹出提示，阻止添加
+
+### 每日总结
+
+- 在底部输入框输入内容后按回车或点击 "+" 添加
+- 点击总结条目右侧的 × 删除
+- 最多显示 4 行，超出后可滚动
+
+### 天气预报
+
+- 自动获取上海地区 7 天天气预报
+- 雨/雪/雾天气会在日历顶部显示"雨天户外作业提醒"
+- 天气数据每天首次请求后缓存，支持历史查看
+
+### 移动端
+
+- 浏览器直接访问即可，推荐 Chrome 添加到主屏幕
+- 布局自动切换为上下结构
+- 日历仅显示周一至周五
 
 ## API 接口
 
@@ -162,19 +140,24 @@ cd ../server && npm start
 | POST | `/api/schedule` | 创建日程（自动检测时间冲突） |
 | PUT | `/api/schedule/:id` | 更新日程 |
 | DELETE | `/api/schedule/:id` | 删除日程 |
-| POST | `/api/schedule/check-conflict` | 预检时间冲突 |
 | POST | `/api/schedule/summary` | 保存每日总结 |
 
 ### 其他
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/weather?city=上海&days=7` | 获取天气预报 |
+| GET | `/api/weather?city=上海&days=7` | 获取天气预报（含缓存） |
 | GET | `/api/persons` | 获取人员列表 |
 | POST | `/api/persons` | 添加人员 |
 
 ## 部署指南
 
 详见 [DEPLOY.md](docs/DEPLOY.md)
+
+## 数据库
+
+- 表结构见 `server/src/db/schema.sql`
+- 数据备份详见 [DATABASE_BACKUP.md](docs/DATABASE_BACKUP.md)
+- 数据库迁移：每次启动自动执行 ALTER TABLE 兼容旧数据
 
 ## 开发规范
 
@@ -183,6 +166,10 @@ cd ../server && npm start
 - 状态管理使用 React hooks（`useSchedule`, `useTasks`）
 - 数据库操作统一使用 better-sqlite3 prepared statements
 - 删除任务时先删 `schedule_events` 再删 `tasks`（避免 FK 约束错误）
+
+## 已知问题与改进方向
+
+详见 [ISSUES.md](docs/ISSUES.md)
 
 ## License
 

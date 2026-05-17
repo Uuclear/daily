@@ -8,9 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: '建设工程待办周历',
-        short_name: '工程待办',
-        description: '建设工程团队待办与周历管理系统',
+        name: '检测日程',
+        short_name: '检测日程',
+        description: '检测日程管理系统',
         theme_color: '#1890ff',
         background_color: '#ffffff',
         icons: [
