@@ -1,4 +1,4 @@
-import { Button } from 'antd';
+import { Button, Modal } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import type { ScheduleEvent } from './types/models';
 
@@ -6,12 +6,28 @@ interface EventCardProps {
   event: ScheduleEvent;
   onDelete?: (id: string) => void;
   onEdit?: (event: ScheduleEvent) => void;
+  isMobile?: boolean;
 }
 
-export function EventCard({ event, onDelete, onEdit }: EventCardProps) {
+export function EventCard({ event, onDelete, onEdit, isMobile }: EventCardProps) {
   const cardBg = event.is_milestone ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' : 'linear-gradient(135deg, #f0f5ff 0%, #e8eeff 100%)';
   const borderColor = event.is_milestone ? '#fbbf24' : '#93c5fd';
   const textColor = event.is_milestone ? '#92400e' : '#1e3a5f';
+
+  const handleDelete = () => {
+    if (isMobile) {
+      Modal.confirm({
+        title: '确认删除',
+        content: `确定要删除日程「${event.title}」吗？`,
+        okText: '删除',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk: () => onDelete?.(event.id),
+      });
+    } else {
+      onDelete?.(event.id);
+    }
+  };
 
   return (
     <div
@@ -35,7 +51,7 @@ export function EventCard({ event, onDelete, onEdit }: EventCardProps) {
           {event.title}
         </span>
         {onDelete && (
-          <Button type="text" size="small" danger style={{ padding: 0, height: 'auto', fontSize: 10, flexShrink: 0 }} onClick={() => onDelete(event.id)}>
+          <Button type="text" size="small" danger style={{ padding: 0, height: 'auto', fontSize: 10, flexShrink: 0 }} onClick={handleDelete}>
             <DeleteOutlined />
           </Button>
         )}

@@ -11,9 +11,13 @@ const { TextArea } = Input;
 
 interface TaskPoolProps {
   compact?: boolean;
+  showCreate?: boolean;
+  showRefresh?: boolean;
+  onCreated?: () => void;
+  onRefreshed?: () => void;
 }
 
-export function TaskPool({ compact }: TaskPoolProps = {}) {
+export function TaskPool({ compact, showCreate, showRefresh, onCreated, onRefreshed }: TaskPoolProps = {}) {
   const { tasks, loading, createTask, updateTask, updateTaskStatus, deleteTask, fetchTasks } = useTasks();
   const [filter, setFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,6 +28,22 @@ export function TaskPool({ compact }: TaskPoolProps = {}) {
   useEffect(() => {
     api.getPersons().then(setPersons).catch(() => setPersons([]));
   }, []);
+
+  // Handle external create trigger from Dashboard
+  useEffect(() => {
+    if (showCreate) {
+      setModalOpen(true);
+      onCreated?.();
+    }
+  }, [showCreate]);
+
+  // Handle external refresh trigger from Dashboard
+  useEffect(() => {
+    if (showRefresh) {
+      fetchTasks();
+      onRefreshed?.();
+    }
+  }, [showRefresh]);
 
   const handleStatusChange = async (id: string, status: Task['status']) => {
     if (status === 'completed') {
@@ -73,10 +93,70 @@ export function TaskPool({ compact }: TaskPoolProps = {}) {
     }
   };
 
+  // In compact mode, hide the internal header bar (buttons are in Dashboard)
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f5f5' }}>
+        <StatusFilter counts={counts} activeFilter={filter} onChange={setFilter} compact />
+        <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
+          {loading && <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>加载中...</div>}
+          {!loading && filteredTasks.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40, color: '#ccc' }}>暂无任务</div>
+          )}
+          {filteredTasks.map(task => (
+            <TaskCardComponent
+              key={task.id}
+              task={task}
+              onUpdateStatus={handleStatusChange}
+              onDelete={handleDelete}
+              onProgressChange={async (id, progress) => {
+                await api.updateTask(id, { progress });
+                fetchTasks();
+              }}
+            />
+          ))}
+        </div>
+
+        <Modal
+          title="新建任务"
+          open={modalOpen}
+          onOk={handleCreate}
+          onCancel={() => setModalOpen(false)}
+          okText="创建"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item name="project_name" label="项目名称" rules={[{ required: true, message: '请输入项目名称' }]}>
+              <Input placeholder="如：静安寺商业广场改造" />
+            </Form.Item>
+            <Form.Item name="location" label="施工地点" rules={[{ required: true, message: '请输入施工地点' }]}>
+              <Input placeholder="如：上海市静安区南京西路1688号" />
+            </Form.Item>
+            <Form.Item name="assigned_team" label="负责人">
+              <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
+                {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
+              </Select>
+            </Form.Item>
+            <Form.Item name="planned_start_date" label="计划开始日期">
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="deadline" label="计划结束日期">
+              <DatePicker style={{ width: '100%' }} placeholder="可选" />
+            </Form.Item>
+            <Form.Item name="notes" label="备注">
+              <TextArea rows={2} placeholder="可选备注信息" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    );
+  }
+
+  // Desktop: full header with buttons
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f5f5' }}>
-      <div style={{ padding: compact ? '6px 8px' : '10px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: compact ? 13 : 15 }}>项目任务池</strong>
+      <div style={{ padding: '10px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: 15 }}>项目任务池</strong>
         <Space>
           <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchTasks()} />
           <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
@@ -85,7 +165,7 @@ export function TaskPool({ compact }: TaskPoolProps = {}) {
         </Space>
       </div>
 
-      <StatusFilter counts={counts} activeFilter={filter} onChange={setFilter} compact={compact} />
+      <StatusFilter counts={counts} activeFilter={filter} onChange={setFilter} />
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>加载中...</div>}
@@ -100,7 +180,6 @@ export function TaskPool({ compact }: TaskPoolProps = {}) {
             onDelete={handleDelete}
             onProgressChange={async (id, progress) => {
               await api.updateTask(id, { progress });
-              // Update local state instead of full refetch to avoid visual shake
               fetchTasks();
             }}
           />

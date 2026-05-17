@@ -506,6 +506,11 @@ function HeaderRow({ dates, today, weatherMap, timeAxisWidth, dayNames, isMobile
             {date === today && <span style={{ color: '#ff4d4f', fontSize: isMobile ? 8 : 10 }}> 今天</span>}
           </div>
           {!isMobile && weatherMap[date] ? <WeatherCard weather={weatherMap[date]} /> : null}
+          {isMobile && weatherMap[date] && weatherMap[date].weather ? (
+            <div style={{ fontSize: 9, color: '#888', textAlign: 'center', padding: '1px 0' }}>
+              {weatherMap[date].weather}
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -618,7 +623,7 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
               zIndex: 5,
             }}
           >
-            <EventCard event={event} onDelete={onDelete} onEdit={onEdit} />
+            <EventCard event={event} onDelete={onDelete} onEdit={onEdit} isMobile={isMobile} />
           </div>
         );
       })}

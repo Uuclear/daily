@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { Button } from 'antd';
-import { DownOutlined, UpOutlined } from '@ant-design/icons';
+import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -10,6 +10,8 @@ import { message } from 'antd';
 export function Dashboard() {
   const { isMobile } = useResponsive();
   const [taskPoolCollapsed, setTaskPoolCollapsed] = useState(false);
+  const [taskPoolCreate, setTaskPoolCreate] = useState(false);
+  const [taskPoolRefresh, setTaskPoolRefresh] = useState(false);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -25,23 +27,29 @@ export function Dashboard() {
   if (isMobile) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#f5f5f5' }}>
-        {/* Mobile TaskPool header */}
-        <div
-          onClick={() => setTaskPoolCollapsed(p => !p)}
-          style={{
-            background: '#fff',
-            padding: '8px 12px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: taskPoolCollapsed ? 'none' : '1px solid #e8e8e8',
-            cursor: 'pointer',
-          }}
-        >
-          <strong style={{ fontSize: 14 }}>项目任务池</strong>
-          <Button type="text" size="small" style={{ padding: 0 }}>
-            {taskPoolCollapsed ? <DownOutlined style={{ fontSize: 10 }} /> : <UpOutlined style={{ fontSize: 10 }} />}
-          </Button>
+        {/* Mobile header - fixed, always visible */}
+        <div style={{
+          background: '#fff',
+          padding: '6px 12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: taskPoolCollapsed ? '1px solid #e8e8e8' : '1px solid #e8e8e8',
+          flexShrink: 0,
+        }}>
+          <div
+            onClick={() => setTaskPoolCollapsed(p => !p)}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <strong style={{ fontSize: 14 }}>项目任务池</strong>
+            {taskPoolCollapsed ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <UpOutlined style={{ fontSize: 10, color: '#999' }} />}
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => setTaskPoolRefresh(true)} />
+            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setTaskPoolCreate(true)}>
+              新建任务
+            </Button>
+          </div>
         </div>
         {/* Mobile TaskPool content */}
         <div style={{
@@ -49,7 +57,7 @@ export function Dashboard() {
           overflow: 'hidden',
           transition: 'height 0.25s ease',
         }}>
-          <TaskPool />
+          <TaskPool compact showCreate={taskPoolCreate} showRefresh={taskPoolRefresh} onCreated={() => setTaskPoolCreate(false)} onRefreshed={() => setTaskPoolRefresh(false)} />
         </div>
         {/* Mobile WeekCalendar */}
         <div style={{ flex: 1, overflow: 'hidden', background: '#fff' }}>
