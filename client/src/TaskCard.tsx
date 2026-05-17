@@ -86,7 +86,6 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space size={4}>
-          {task.assigned_team && <span style={{ fontSize: 10, color: '#666' }}><UserOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.assigned_team}</span>}
           {task.planned_start_date && <span style={{ fontSize: 10, color: '#666' }}><CalendarOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.planned_start_date}</span>}
           {task.deadline && <span style={{ fontSize: 10, color: '#ff4d4f' }}>截止: {task.deadline}</span>}
         </Space>
