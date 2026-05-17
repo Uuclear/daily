@@ -4,6 +4,7 @@ interface StatusFilterProps {
   counts: Record<string, number>;
   activeFilter: string;
   onChange: (filter: string) => void;
+  compact?: boolean;
 }
 
 const filterConfig = [
@@ -14,9 +15,17 @@ const filterConfig = [
   { key: 'completed', label: '任务结束', activeColor: '#8c8c8c', defaultBg: '#fafafa', defaultColor: '#666' },
 ];
 
-export function StatusFilter({ counts, activeFilter, onChange }: StatusFilterProps) {
+export function StatusFilter({ counts, activeFilter, onChange, compact }: StatusFilterProps) {
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e8e8e8' }}>
+    <div style={{
+      display: 'flex',
+      gap: compact ? 4 : 6,
+      flexWrap: compact ? 'nowrap' : 'wrap',
+      overflowX: compact ? 'auto' : 'visible',
+      padding: compact ? '6px 8px' : '8px 16px',
+      background: '#fff',
+      borderBottom: '1px solid #e8e8e8',
+    }}>
       {filterConfig.map(f => {
         const isActive = activeFilter === f.key;
         return (
@@ -24,14 +33,15 @@ export function StatusFilter({ counts, activeFilter, onChange }: StatusFilterPro
             key={f.key}
             style={{
               cursor: 'pointer',
-              padding: '4px 12px',
+              padding: compact ? '3px 8px' : '4px 12px',
               borderRadius: 16,
-              fontSize: 12,
+              fontSize: compact ? 11 : 12,
               fontWeight: isActive ? 600 : 500,
               background: isActive ? f.activeColor : f.defaultBg,
               color: isActive ? '#fff' : f.defaultColor,
               border: '1px solid transparent',
               transition: 'all 0.2s',
+              flexShrink: 0,
             }}
             onClick={() => onChange(f.key)}
           >

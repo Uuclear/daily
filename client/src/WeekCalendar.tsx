@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker } from 'antd';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { LeftOutlined, RightOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ScheduleEvent, Task } from './types/models';
 import { WeatherCard } from './WeatherCard';
 import { EventCard } from './EventCard';
@@ -10,19 +10,20 @@ import { useWeather } from './hooks/useWeather';
 import * as api from './api/client';
 
 const { TextArea } = Input;
-const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-const TIME_AXIS_WIDTH = 48;
-const SUMMARY_HEIGHT = 120;
-const TOTAL_HOURS = 24;
-const PX_PER_HOUR = 50;
-const SCROLL_HOUR = 8;
+const dayNamesFull = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const dayNamesShort = ['一', '二', '三', '四', '五'];
 
 /** Get local date string YYYY-MM-DD without timezone issues */
 function localDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function WeekCalendar() {
+interface WeekCalendarProps {
+  visibleDays?: number;
+  isMobile?: boolean;
+}
+
+export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendarProps) {
   const { schedule, loading, currentWeekStart, prevWeek, nextWeek, goToToday, addEvent, updateEvent, removeEvent, updateSummary } = useSchedule();
   const { weather, loading: weatherLoading } = useWeather();
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -39,13 +40,19 @@ export function WeekCalendar() {
   const navDragging = useRef(false);
   const navOffset = useRef({ x: 0, y: 0 });
 
+  // Mobile dimensions
+  const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
+  const SUMMARY_HEIGHT = isMobile ? 100 : 120;
+  const PX_PER_HOUR = isMobile ? 38 : 50;
+  const SCROLL_HOUR = 8;
+
   // Fetch tasks and persons
   useEffect(() => {
     api.getTasks().then(setTasks).catch(() => setTasks([]));
     api.getPersons().then(setPersons).catch(() => setPersons([]));
   }, []);
 
-  // Auto-scroll to 8am: use a ref-based approach that fires every time loading changes to false
+  // Auto-scroll to 8am
   const scrollTargetRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -61,11 +68,15 @@ export function WeekCalendar() {
     }
   });
 
+  // Filter to visible days (first N days of the week)
+  const visibleDates = schedule.dates.slice(0, visibleDays);
   const today = localDateString(new Date());
-  const todayIndex = schedule.dates.indexOf(today);
+  const todayIndex = visibleDates.indexOf(today);
 
   const weatherMap: Record<string, any> = {};
   weather.forEach(w => { weatherMap[w.date] = w; });
+
+  const dayNames = isMobile ? dayNamesShort : dayNamesFull;
 
   const initSummaryItems = (date: string) => {
     if (!(date in summaryItems)) {
@@ -192,7 +203,7 @@ export function WeekCalendar() {
     }
   };
 
-  // Nav dragging
+  // Nav dragging (desktop only)
   const handleNavMouseDown = (e: React.MouseEvent) => {
     navDragging.current = true;
     navOffset.current = { x: e.clientX, y: e.clientY };
@@ -201,6 +212,7 @@ export function WeekCalendar() {
   };
 
   useEffect(() => {
+    if (isMobile) return;
     const handleMouseMove = (e: MouseEvent) => {
       if (!navDragging.current) return;
       const dx = e.clientX - navOffset.current.x;
@@ -216,45 +228,76 @@ export function WeekCalendar() {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-  }, []);
+  }, [isMobile]);
+
+  const totalDays = visibleDates.length;
+
+  // Navigation bar
+  const navBar = isMobile ? (
+    <div style={{
+      background: '#fff',
+      borderBottom: '1px solid #e8e8e8',
+      padding: '6px 12px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0,
+    }}>
+      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={prevWeek}>
+        <LeftOutlined style={{ fontSize: 10 }} />
+      </Button>
+      <Button size="small" type="primary" style={{ width: 56, minWidth: 56, padding: 0, height: 28, borderRadius: 8, fontWeight: 500, background: '#1890ff', border: 'none' }} onClick={goToToday}>
+        今日
+      </Button>
+      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={nextWeek}>
+        <RightOutlined style={{ fontSize: 10 }} />
+      </Button>
+      <div style={{ flex: 1 }} />
+      <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>
+        添加
+      </Button>
+    </div>
+  ) : (
+    <div
+      style={{
+        position: 'absolute',
+        top: navPos.top,
+        left: navPos.left,
+        zIndex: 50,
+        cursor: 'grab',
+        opacity: 0.92,
+      }}
+      onMouseDown={handleNavMouseDown}
+    >
+      <div style={{
+        padding: '5px 8px',
+        background: 'rgba(26,26,46,0.88)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: 12,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}>
+        <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={prevWeek}>
+          <LeftOutlined style={{ fontSize: 10 }} />
+        </Button>
+        <Button type="primary" size="small" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', width: 48, minWidth: 48, padding: 0, height: 24, borderRadius: 8, fontWeight: 500 }} onClick={goToToday}>
+          今日
+        </Button>
+        <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={nextWeek}>
+          <RightOutlined style={{ fontSize: 10 }} />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: isMobile ? 'relative' : undefined }}>
 
-      {/* Navigation bar - draggable */}
-      <div
-        style={{
-          position: 'absolute',
-          top: navPos.top,
-          left: navPos.left,
-          zIndex: 50,
-          cursor: 'grab',
-          opacity: 0.92,
-        }}
-        onMouseDown={handleNavMouseDown}
-      >
-        <div style={{
-          padding: '5px 8px',
-          background: 'rgba(26,26,46,0.88)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: 12,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}>
-          <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={prevWeek}>
-            <LeftOutlined style={{ fontSize: 10 }} />
-          </Button>
-          <Button type="primary" size="small" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', width: 48, minWidth: 48, padding: 0, height: 24, borderRadius: 8, fontWeight: 500 }} onClick={goToToday}>
-            今日
-          </Button>
-          <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={nextWeek}>
-            <RightOutlined style={{ fontSize: 10 }} />
-          </Button>
-        </div>
-      </div>
+      {navBar}
 
       {weatherLoading || loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
@@ -264,21 +307,23 @@ export function WeekCalendar() {
         <>
           {/* Header Row */}
           <HeaderRow
-            dates={schedule.dates}
+            dates={visibleDates}
             today={today}
             weatherMap={weatherMap}
             timeAxisWidth={TIME_AXIS_WIDTH}
+            dayNames={dayNames}
+            isMobile={isMobile}
           />
 
           {/* Calendar area */}
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             <div ref={calendarRef} style={{ display: 'flex', flex: 1, overflow: 'auto', minHeight: 0 }}>
               {/* Time axis */}
-              <TimeAxis totalHours={TOTAL_HOURS} pxPerHour={PX_PER_HOUR} />
+              <TimeAxis totalHours={24} pxPerHour={PX_PER_HOUR} timeAxisWidth={TIME_AXIS_WIDTH} />
 
               {/* Day columns */}
               <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
-                {schedule.dates.map((date, idx) => {
+                {visibleDates.map((date, idx) => {
                   const events = schedule.events[date] || [];
                   const dayWeather = weatherMap[date];
                   const isRainy = dayWeather?.outdoorWarning;
@@ -292,19 +337,20 @@ export function WeekCalendar() {
                       events={events}
                       isRainy={!!isRainy}
                       isToday={isToday}
-                      isLastDay={idx === 6}
-                      totalHours={TOTAL_HOURS}
+                      isLastDay={idx === totalDays - 1}
+                      totalHours={24}
                       pxPerHour={PX_PER_HOUR}
                       onDelete={removeEvent}
                       onEdit={openEditModal}
                       onDoubleClick={(timeStr) => openCreateModal(date, timeStr)}
+                      isMobile={isMobile}
                     />
                   );
                 })}
 
                 {/* Today timeline */}
                 {todayIndex >= 0 && (
-                  <TodayTimelineOverlay todayIndex={todayIndex} totalDays={schedule.dates.length} pxPerHour={PX_PER_HOUR} totalHeight={PX_PER_HOUR * TOTAL_HOURS} />
+                  <TodayTimelineOverlay todayIndex={todayIndex} totalDays={totalDays} pxPerHour={PX_PER_HOUR} totalHeight={PX_PER_HOUR * 24} />
                 )}
               </div>
             </div>
@@ -312,11 +358,11 @@ export function WeekCalendar() {
             {/* Daily Summaries Row */}
             <div style={{ display: 'flex', borderTop: '1px solid #f0f0f0', background: '#fafbfc', height: SUMMARY_HEIGHT, flexShrink: 0 }}>
               <div style={{ width: TIME_AXIS_WIDTH, flexShrink: 0, background: '#fafbfc', borderRight: '1px solid #f0f0f0' }} />
-              {schedule.dates.map((date, idx) => {
+              {visibleDates.map((date, idx) => {
                 initSummaryItems(date);
                 const items = summaryItems[date] || [];
                 return (
-                  <div key={date} style={{ flex: 1, borderRight: idx < 6 ? '1px solid #f0f0f0' : 'none', padding: '4px 6px', overflowY: 'auto' }}>
+                  <div key={date} style={{ flex: 1, borderRight: idx < totalDays - 1 ? '1px solid #f0f0f0' : 'none', padding: '4px 6px', overflowY: 'auto' }}>
                     {items.map((item, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2, fontSize: 10 }}>
                         <span style={{ color: '#1890ff', fontSize: 8 }}>•</span>
@@ -441,23 +487,25 @@ export function WeekCalendar() {
   );
 }
 
-/** Header row - shares same flex layout as calendar body */
-function HeaderRow({ dates, today, weatherMap, timeAxisWidth }: {
+/** Header row */
+function HeaderRow({ dates, today, weatherMap, timeAxisWidth, dayNames, isMobile }: {
   dates: string[];
   today: string;
   weatherMap: Record<string, any>;
   timeAxisWidth: number;
+  dayNames: string[];
+  isMobile: boolean;
 }) {
   return (
     <div style={{ display: 'flex', borderBottom: '2px solid #e8e8e8', background: '#fafbfc', flexShrink: 0 }}>
       <div style={{ width: timeAxisWidth, flexShrink: 0, background: '#fafbfc' }} />
       {dates.map((date, idx) => (
-        <div key={date} style={{ flex: 1, borderRight: idx < 6 ? '1px solid #e8e8e8' : 'none' }}>
-          <div style={{ fontWeight: 600, fontSize: 13, textAlign: 'center', padding: '6px 0', color: date === today ? '#1890ff' : '#1a1a2e' }}>
-            {dayNames[idx]} <span style={{ color: '#999', fontWeight: 400, fontSize: 11 }}>{formatDateShort(date)}</span>
-            {date === today && <span style={{ color: '#ff4d4f', fontSize: 10 }}> 今天</span>}
+        <div key={date} style={{ flex: 1, borderRight: idx < dates.length - 1 ? '1px solid #e8e8e8' : 'none' }}>
+          <div style={{ fontWeight: 600, fontSize: isMobile ? 11 : 13, textAlign: 'center', padding: isMobile ? '4px 0' : '6px 0', color: date === today ? '#1890ff' : '#1a1a2e' }}>
+            {dayNames[idx]} <span style={{ color: '#999', fontWeight: 400, fontSize: isMobile ? 9 : 11 }}>{formatDateShort(date)}</span>
+            {date === today && <span style={{ color: '#ff4d4f', fontSize: isMobile ? 8 : 10 }}> 今天</span>}
           </div>
-          {weatherMap[date] ? <WeatherCard weather={weatherMap[date]} /> : null}
+          {!isMobile && weatherMap[date] ? <WeatherCard weather={weatherMap[date]} /> : null}
         </div>
       ))}
     </div>
@@ -469,9 +517,9 @@ function formatDateShort(dateStr: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function TimeAxis({ totalHours, pxPerHour }: { totalHours: number; pxPerHour: number }) {
+function TimeAxis({ totalHours, pxPerHour, timeAxisWidth }: { totalHours: number; pxPerHour: number; timeAxisWidth: number }) {
   return (
-    <div style={{ width: TIME_AXIS_WIDTH, flexShrink: 0, background: '#fafbfc', borderRight: '1px solid #e8e8e8', position: 'relative' }}>
+    <div style={{ width: timeAxisWidth, flexShrink: 0, background: '#fafbfc', borderRight: '1px solid #e8e8e8', position: 'relative' }}>
       {Array.from({ length: totalHours }, (_, i) => (
         <div
           key={i}
@@ -480,10 +528,10 @@ function TimeAxis({ totalHours, pxPerHour }: { totalHours: number; pxPerHour: nu
             top: i * pxPerHour,
             left: 0,
             right: 0,
-            fontSize: 9,
+            fontSize: 8,
             color: '#bbb',
             textAlign: 'right',
-            paddingRight: 6,
+            paddingRight: 4,
             paddingTop: 1,
             lineHeight: 1,
           }}
@@ -495,7 +543,7 @@ function TimeAxis({ totalHours, pxPerHour }: { totalHours: number; pxPerHour: nu
   );
 }
 
-function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, totalHours, onDelete, onEdit, onDoubleClick }: {
+function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, totalHours, onDelete, onEdit, onDoubleClick, isMobile }: {
   date: string;
   events: ScheduleEvent[];
   isRainy: boolean;
@@ -506,6 +554,7 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
   onDelete: (id: string) => void;
   onEdit: (event: ScheduleEvent) => void;
   onDoubleClick: (timeStr: string) => void;
+  isMobile: boolean;
 }) {
   const handleDblClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -518,7 +567,6 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
         return;
       }
     }
-    // Calculate time from click position within the scrollable calendar
     const scrollContainer = e.currentTarget.closest('[style*="overflow"]') as HTMLElement | null;
     const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -545,7 +593,7 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
         <div key={i} style={{ position: 'absolute', top: i * pxPerHour, left: 0, right: 0, borderTop: '1px dashed #f0f0f0', pointerEvents: 'none' }} />
       ))}
       {isRainy && (
-        <div style={{ background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 8, padding: '4px 8px', marginBottom: 4, fontSize: 10, color: '#ff4d4f', fontWeight: 500 }}>
+        <div style={{ background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 8, padding: '4px 8px', marginBottom: 4, fontSize: isMobile ? 9 : 10, color: '#ff4d4f', fontWeight: 500 }}>
           雨天户外作业提醒
         </div>
       )}
@@ -563,8 +611,8 @@ function WeekDayColumn({ date, events, isRainy, isToday, isLastDay, pxPerHour, t
             data-event-id={event.id}
             style={{
               position: 'absolute',
-              left: 4,
-              right: 4,
+              left: isMobile ? 2 : 4,
+              right: isMobile ? 2 : 4,
               top: topPx,
               height: heightPx,
               zIndex: 5,

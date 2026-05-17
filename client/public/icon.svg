@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1890ff"/>
+  <text x="256" y="200" text-anchor="middle" fill="white" font-family="sans-serif" font-size="120" font-weight="bold">待办</text>
+  <rect x="120" y="240" width="272" height="40" rx="20" fill="rgba(255,255,255,0.3)"/>
+  <rect x="120" y="300" width="200" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
+  <rect x="120" y="360" width="150" height="40" rx="20" fill="rgba(255,255,255,0.1)"/>
+</svg>

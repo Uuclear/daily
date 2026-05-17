@@ -9,7 +9,11 @@ import * as api from './api/client';
 
 const { TextArea } = Input;
 
-export function TaskPool() {
+interface TaskPoolProps {
+  compact?: boolean;
+}
+
+export function TaskPool({ compact }: TaskPoolProps = {}) {
   const { tasks, loading, createTask, updateTask, updateTaskStatus, deleteTask, fetchTasks } = useTasks();
   const [filter, setFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -71,8 +75,8 @@ export function TaskPool() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f5f5f5' }}>
-      <div style={{ padding: '10px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: 15 }}>项目任务池</strong>
+      <div style={{ padding: compact ? '6px 8px' : '10px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: compact ? 13 : 15 }}>项目任务池</strong>
         <Space>
           <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchTasks()} />
           <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
@@ -81,7 +85,7 @@ export function TaskPool() {
         </Space>
       </div>
 
-      <StatusFilter counts={counts} activeFilter={filter} onChange={setFilter} />
+      <StatusFilter counts={counts} activeFilter={filter} onChange={setFilter} compact={compact} />
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 6 }}>
         {loading && <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>加载中...</div>}

@@ -7,5 +7,8 @@
     "dev:client": "cd client && npm run dev",
     "dev": "cd server && npm run seed && cd .. && (npm run dev:server & npm run dev:client)",
     "seed": "cd server && npm run seed"
+  },
+  "dependencies": {
+    "vite-plugin-pwa": "^1.3.0"
   }
 }
