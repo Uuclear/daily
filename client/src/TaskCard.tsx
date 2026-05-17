@@ -1,5 +1,5 @@
 import { Card, Tag, Button, Space, Popconfirm, Slider, Modal, Form, Input, message, DatePicker } from 'antd';
-import { DeleteOutlined, CheckOutlined, UndoOutlined, EditOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CheckOutlined, UndoOutlined, EditOutlined, EnvironmentOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { Task } from './types/models';
 import { useState } from 'react';
 import * as api from './api/client';
@@ -59,13 +59,13 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
       bodyStyle={{ padding: '8px 12px' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-        <strong style={{ fontSize: 13 }}>{task.project_name}</strong>
-        <Tag color={config.color} style={{ fontSize: 10, padding: '0 6px', lineHeight: '18px', borderRadius: 4 }}>{config.label}</Tag>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+          <strong style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.project_name}</strong>
+          {task.location && <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}><EnvironmentOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.location}</span>}
+          {task.assigned_team && <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap' }}><UserOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.assigned_team}</span>}
+        </div>
+        <Tag color={config.color} style={{ fontSize: 10, padding: '0 6px', lineHeight: '18px', borderRadius: 4, flexShrink: 0, marginLeft: 4 }}>{config.label}</Tag>
       </div>
-      <div style={{ color: '#666', fontSize: 11, marginBottom: 4 }}>
-        {task.location}
-      </div>
-
       {task.status === 'in_progress' && (
         <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 10, color: '#888', minWidth: 28 }}>进度</span>
@@ -86,7 +86,8 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space size={4}>
-          {task.assigned_team && <span style={{ fontSize: 11, color: '#888' }}>{task.assigned_team}</span>}
+          {task.assigned_team && <span style={{ fontSize: 10, color: '#666' }}><UserOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.assigned_team}</span>}
+          {task.planned_start_date && <span style={{ fontSize: 10, color: '#666' }}><CalendarOutlined style={{ marginRight: 2, fontSize: 10 }} />{task.planned_start_date}</span>}
           {task.deadline && <span style={{ fontSize: 10, color: '#ff4d4f' }}>截止: {task.deadline}</span>}
         </Space>
 
