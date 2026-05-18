@@ -64,10 +64,10 @@ export function TaskPool({ compact, readOnly = false, showCreate, showRefresh, o
     }
   };
 
-  const filteredTasks = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
+  const filteredTasks = filter === 'all' ? (tasks || []) : (tasks || []).filter(t => t.status === filter);
 
-  const counts: Record<string, number> = { all: tasks.length };
-  tasks.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
+  const counts: Record<string, number> = { all: (tasks || []).length };
+  (tasks || []).forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
 
   const handleCreate = async () => {
     const values = await form.validateFields();
@@ -136,7 +136,7 @@ export function TaskPool({ compact, readOnly = false, showCreate, showRefresh, o
             </Form.Item>
             <Form.Item name="assigned_team" label="负责人">
               <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
-                {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
+                {(persons || []).map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
               </Select>
             </Form.Item>
             <Form.Item name="planned_start_date" label="计划开始日期">
