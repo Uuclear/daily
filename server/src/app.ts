@@ -7,6 +7,7 @@ import scheduleRouter from './routes/schedule';
 import teamsRouter from './routes/teams';
 import weatherRouter from './routes/weather';
 import personsRouter from './routes/persons';
+import authRouter from './routes/auth';
 import { getDb } from './db/init';
 
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json());
 getDb();
 
 // API Routes
+app.use('/api/auth', authRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/schedule', scheduleRouter);
 app.use('/api/teams', teamsRouter);
