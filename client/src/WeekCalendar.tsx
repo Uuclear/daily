@@ -331,7 +331,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
 
   const totalDays = visibleDates.length;
 
-  // Navigation bar (simplified - only nav buttons, user buttons are in Dashboard)
+  // Navigation bar
   const navBar = isMobile ? (
     <div style={{
       background: '#fff',
@@ -360,7 +360,28 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
         </Button>
       )}
     </div>
-  ) : null; // Desktop nav bar is handled by Dashboard
+  ) : (
+    // Desktop nav bar - week navigation only (user buttons in Dashboard)
+    <div style={{
+      background: '#fff',
+      borderBottom: '1px solid #e8e8e8',
+      padding: '8px 12px',
+      display: 'flex',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 0,
+    }}>
+      <Button size="small" icon={<LeftOutlined />} onClick={prevWeek}>上周</Button>
+      <Button size="small" type="primary" onClick={goToToday}>今日</Button>
+      <Button size="small" icon={<RightOutlined />} onClick={nextWeek}>下周</Button>
+      <div style={{ flex: 1 }} />
+      <Button size="small" icon={<DownloadOutlined />} onClick={handleExportImage} loading={exporting}>导出</Button>
+      {!readOnly && (
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>添加日程</Button>
+      )}
+    </div>
+  );
 
   return (
     <div id="calendar-export-target" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: isMobile ? 'relative' : undefined }}>
