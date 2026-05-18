@@ -43,9 +43,22 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
     onEdit?.(task);
   };
 
+  const openEditForm = () => {
+    editForm.setFieldsValue({
+      project_name: task.project_name,
+      location: task.location,
+      assigned_team: task.assigned_team,
+      planned_start_date: task.planned_start_date ? dayjs(task.planned_start_date) : undefined,
+      deadline: task.deadline ? dayjs(task.deadline) : undefined,
+      notes: task.notes || '',
+    });
+    setEditModalOpen(true);
+  };
+
   return (
     <>
     <div
+      onDoubleClick={openEditForm}
       style={{
         background: 'linear-gradient(145deg, #fefefe 0%, #faf9f6 50%, #f5f3ef 100%)',
         borderRadius: 10,
@@ -57,6 +70,7 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
         position: 'relative',
         overflow: 'hidden',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        cursor: 'pointer',
       }}
     >
       {/* 左侧任务色条 - 与任务颜色一致 */}
@@ -85,7 +99,7 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
         }}>{task.project_name}</strong>
       </div>
 
-      {/* 地点 + 负责人 */}
+      {/* 地点 + 负责人 + 日期 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, paddingLeft: 8, flexWrap: 'wrap' }}>
         {task.location && (
           <span style={{
@@ -106,11 +120,33 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
             <UserOutlined style={{ marginRight: 3, fontSize: 10 }} />{task.assigned_team}
           </span>
         )}
+        {task.planned_start_date && (
+          <span style={{
+            fontSize: 11, color: '#888',
+            background: '#f0eeeb', borderRadius: 4,
+            padding: '2px 8px', whiteSpace: 'nowrap',
+          }}>
+            <CalendarOutlined style={{ marginRight: 3, fontSize: 10, opacity: 0.7 }} />{task.planned_start_date}
+          </span>
+        )}
+        {task.deadline && (
+          <span style={{
+            fontSize: 11, color: '#d46b6b', fontWeight: 500,
+            background: '#fdf0f0', border: '1px solid #f0d4d4',
+            borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap',
+          }}>
+            截止 {task.deadline}
+          </span>
+        )}
       </div>
 
       {/* 进度条 */}
       {task.status === 'in_progress' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8, paddingRight: 8 }}>
+        <div
+          onDoubleClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8, paddingRight: 8 }}
+        >
           <span style={{ fontSize: 10, color: '#999', minWidth: 28 }}>进度</span>
           <Slider
             value={displayValue}
@@ -125,38 +161,29 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
         </div>
       )}
 
-      {/* 底部信息行 */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        paddingLeft: 8, paddingRight: 8,
-        borderTop: '1px solid #edeae5', paddingTop: 6, marginTop: 2,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', overflow: 'hidden' }}>
-          {task.planned_start_date && (
-            <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
-              <CalendarOutlined style={{ marginRight: 3, fontSize: 10, opacity: 0.7 }} />{task.planned_start_date}
-            </span>
-          )}
-          {task.deadline && (
-            <span style={{ fontSize: 10, color: '#d46b6b', whiteSpace: 'nowrap', fontWeight: 500 }}>
-              截止 {task.deadline}
-            </span>
-          )}
-          {task.notes && (
-            <span style={{
-              fontSize: 10, color: '#aaa', maxWidth: 100,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              fontStyle: 'italic',
-            }}>
-              {task.notes}
-            </span>
-          )}
-        </div>
-
+      {/* 底部 — 备注 + 按钮 */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          paddingLeft: 8, paddingRight: 8,
+          borderTop: '1px solid #edeae5', paddingTop: 6, marginTop: 2,
+        }}
+      >
+        {task.notes && (
+          <span style={{
+            fontSize: 10, color: '#aaa', fontStyle: 'italic',
+            lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            flex: 1,
+          }}>
+            {task.notes}
+          </span>
+        )}
         <Space size={0}>
           {onEdit && (
             <Button type="text" size="small" style={{ padding: '2px 4px', height: 22, fontSize: 11, color: '#999', borderRadius: 4 }}
-              onClick={() => { editForm.setFieldsValue({ project_name: task.project_name, location: task.location, assigned_team: task.assigned_team, planned_start_date: task.planned_start_date ? dayjs(task.planned_start_date) : null, deadline: task.deadline ? dayjs(task.deadline) : null, notes: task.notes || '' }); setEditModalOpen(true); }}>
+              onClick={(e) => { e.stopPropagation(); openEditForm(); }}>
               <EditOutlined style={{ fontSize: 11 }} />
             </Button>
           )}
@@ -212,10 +239,10 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
           <Input placeholder="负责人" />
         </Form.Item>
         <Form.Item name="planned_start_date" label="计划开始日期">
-          <DatePicker style={{ width: '100%' }} />
+          <DatePicker style={{ width: '100%' }} allowClear />
         </Form.Item>
         <Form.Item name="deadline" label="计划结束日期">
-          <DatePicker style={{ width: '100%' }} placeholder="可选" />
+          <DatePicker style={{ width: '100%' }} allowClear placeholder="可选" />
         </Form.Item>
         <Form.Item name="notes" label="备注">
           <Input.TextArea rows={2} placeholder="可选备注信息" />
