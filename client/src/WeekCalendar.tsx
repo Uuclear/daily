@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker, Popconfirm } from 'antd';
-import { LeftOutlined, RightOutlined, PlusOutlined } from '@ant-design/icons';
+import { LeftOutlined, RightOutlined, PlusOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { ScheduleEvent, Task } from './types/models';
 import { WeatherCard } from './WeatherCard';
 import { EventCard } from './EventCard';
 import { useSchedule } from './hooks/useSchedule';
 import { useWeather } from './hooks/useWeather';
 import * as api from './api/client';
+import { exportAsImage, exportAsPDF } from './utils/export';
 
 const { TextArea } = Input;
 const dayNamesFull = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -40,6 +41,42 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
   const calendarRef = useRef<HTMLDivElement>(null);
   const navDragging = useRef(false);
   const navOffset = useRef({ x: 0, y: 0 });
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportImage = async () => {
+    try {
+      setExporting(true);
+      const element = document.getElementById('calendar-export-target');
+      if (!element) {
+        message.error('导出失败：未找到日历元素');
+        return;
+      }
+      const weekLabel = dayjs(currentWeekStart).format('YYYY-MM-DD');
+      await exportAsImage(element, `calendar-${weekLabel}`);
+      message.success('图片导出成功');
+    } catch (e) {
+      message.error('导出失败，请重试');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const element = document.getElementById('calendar-export-target');
+      if (!element) {
+        message.error('导出失败：未找到日历元素');
+        return;
+      }
+      const weekLabel = dayjs(currentWeekStart).format('YYYY-MM-DD');
+      await exportAsPDF(element, `calendar-${weekLabel}`);
+    } catch (e) {
+      message.error('导出失败，请重试');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Mobile dimensions
   const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
@@ -303,6 +340,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
         <RightOutlined style={{ fontSize: 10 }} />
       </Button>
       <div style={{ flex: 1 }} />
+      <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} onClick={handleExportImage} loading={exporting} />
       <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>
         添加
       </Button>
@@ -339,12 +377,16 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
         <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={nextWeek}>
           <RightOutlined style={{ fontSize: 10 }} />
         </Button>
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={handleExportImage} loading={exporting} title="导出图片">
+          <DownloadOutlined style={{ fontSize: 12 }} />
+        </Button>
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: isMobile ? 'relative' : undefined }}>
+    <div id="calendar-export-target" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: isMobile ? 'relative' : undefined }}>
 
       {navBar}
 
