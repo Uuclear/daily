@@ -196,6 +196,54 @@ cp server/data/construction.db server/data/construction.db.bak
 
 ---
 
+## 常见部署错误
+
+### 1. PM2 启动路径错误
+
+**错误示例：**
+```bash
+pm2 start /opt/daily/server
+```
+
+**报错：** `Cannot find module`
+
+**正确方式：**
+```bash
+pm2 start /opt/daily/server/dist/server.js
+```
+
+**原因：** PM2 需要指定 JS 文件路径，不能只指定目录。TypeScript 必须先编译成 JavaScript。
+
+### 2. TypeScript 未编译直接运行
+
+**错误示例：**
+```bash
+pm2 start server/src/server.ts
+```
+
+**正确方式：**
+```bash
+cd server && npm run build
+pm2 start dist/server.js
+```
+
+**原因：** 生产环境运行编译后的 JS 文件，不是 TS 源码。启动 PM2 前必须先执行 `npm run build`。
+
+### 3. PM2 进程残留导致冲突
+
+**问题：** 之前停止或报错的进程仍然存在，导致新启动的进程冲突。
+
+**解决方案：**
+```bash
+pm2 list              # 查看现有进程
+pm2 delete all        # 清除所有进程
+pm2 start dist/server.js --name daily-server
+```
+
+**建议：** 每次部署更新前先 `pm2 delete` 再重新启动。
+
+---
+
 ## 常见故障排查
 
 | 问题 | 原因 | 解决方案 |
@@ -205,3 +253,4 @@ cp server/data/construction.db server/data/construction.db.bak
 | 天气不显示 | API 请求失败 | 检查网络连接，Open-Meteo 需外网 |
 | 端口冲突 | 3001/5173 被占用 | 修改 `server/src/server.ts` 的 PORT 或 `client/vite.config.ts` |
 | PWA 无法安装 | 非 HTTPS | 本地开发不支持 PWA install prompt，部署后 HTTPS 即可 |
+| PM2 报错 "Cannot find module" | 路径错误或未编译 | 使用 `dist/server.js`，先运行 `npm run build` |
