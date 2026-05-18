@@ -107,124 +107,13 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
     handleExportImage: async () => {
       try {
         setExporting(true);
-        // For export, always use full 7 days regardless of visibleDays prop
-        const allDates = (schedule?.dates || []);
-        const weekLabel = dayjs(currentWeekStart || allDates[0]).format('YYYY-MM-DD');
-
-        // Create a hidden export container with full 7 days
-        const exportContainer = document.createElement('div');
-        exportContainer.id = 'temp-export-container';
-        exportContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 1400px; background: #fff;';
-
-        // Build the export HTML with full 7-day calendar
-        const todayLocal = localDateString(new Date());
-        const dayNamesExport = dayNamesFull;
-        const PX_PER_HOUR_EXPORT = 50;
-        const TIME_AXIS_WIDTH_EXPORT = 48;
-
-        // Header row
-        let headerHtml = `<div style="display: flex; background: #fafbfc; border-bottom: 2px solid #e8e8e8;">`;
-        headerHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc;"></div>`;
-        for (let i = 0; i < 7; i++) {
-          const date = allDates[i] || '';
-          const d = new Date(date);
-          const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-          const isToday = date === todayLocal;
-          const w = weatherMap[date];
-          headerHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; text-align: center; padding: 6px 0;">
-            <div style="font-weight: 600; font-size: 14px; color: ${isToday ? '#1890ff' : '#1a1a2e'};">
-              ${dayNamesExport[i]} <span style="color: #999; font-weight: 400; font-size: 12px;">${dateStr}</span>
-              ${isToday ? '<span style="color: #ff4d4f; font-size: 11px;"> 今天</span>' : ''}
-            </div>
-            ${w ? `<div style="font-size: 12px; color: #888;">${w.icon} ${w.description} ${w.tempMin}°/${w.tempMax}°</div>` : ''}
-          </div>`;
+        const element = document.getElementById('calendar-export-target');
+        if (!element) {
+          message.error('导出失败：未找到日历元素');
+          return;
         }
-        headerHtml += '</div>';
-
-        // Calendar grid
-        let gridHtml = `<div style="display: flex;">`;
-        gridHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8; position: relative;">`;
-        for (let h = 0; h < 24; h++) {
-          gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; right: 0; font-size: 8px; color: #bbb; text-align: right; padding-right: 4px; padding-top: 1px;">${String(h).padStart(2, '0')}</div>`;
-        }
-        gridHtml += '</div>';
-
-        for (let i = 0; i < 7; i++) {
-          const date = allDates[i] || '';
-          const events = schedule?.events?.[date] || [];
-          const w = weatherMap[date];
-          const isRainy = w?.outdoorWarning;
-          const isToday = date === todayLocal;
-
-          gridHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; position: relative; height: ${24 * PX_PER_HOUR_EXPORT}px; background: ${isRainy ? '#fff8f0' : isToday ? '#f8faff' : 'transparent'};">`;
-
-          // Hour lines
-          for (let h = 0; h < 24; h++) {
-            gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; left: 0; right: 0; border-top: 1px dashed #f0f0f0;"></div>`;
-          }
-
-          // Events - paper card style matching EventCard
-          for (const ev of events) {
-            const [startH, startM] = ev.start_time.split(':').map(Number);
-            const [endH, endM] = ev.end_time.split(':').map(Number);
-            const startVal = startH + startM / 60;
-            const endVal = endH + endM / 60;
-            const topPx = startVal * PX_PER_HOUR_EXPORT;
-            const heightPx = Math.max(30, (endVal - startVal) * PX_PER_HOUR_EXPORT);
-            const taskColor = ev.task_id ? taskColorMap[ev.task_id] : undefined;
-            const cardBg = taskColor ? taskColor : '#e8f4fd';
-            const cardBgLight = taskColor ? `${taskColor}15` : '#f0f7ff';
-
-            // Paper card style with task color background
-            gridHtml += `<div style="position: absolute; left: 4px; right: 4px; top: ${topPx}px; height: ${heightPx}px;
-              background: linear-gradient(135deg, ${cardBgLight} 0%, ${cardBg}40 100%);
-              border: 1px solid ${cardBg}60;
-              border-left: 3px solid ${cardBg};
-              border-radius: 8px;
-              padding: 4px 8px;
-              overflow: hidden;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
-              backdrop-filter: blur(4px);
-            ">
-              <div style="font-size: 11px; font-weight: 600; color: #1a1a2e; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.title}</div>
-              <div style="font-size: 10px; color: #666; margin-bottom: 2px;">${ev.start_time}-${ev.end_time}</div>
-              ${ev.location ? `<div style="font-size: 10px; color: #888; display: flex; align-items: center; gap: 2px;"><span>📍</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.location}</span></div>` : ''}
-              ${ev.assigned_team ? `<div style="font-size: 10px; color: #555; display: flex; align-items: center; gap: 2px;"><span>👤</span><span>${ev.assigned_team}</span></div>` : ''}
-              ${ev.is_milestone ? `<div style="font-size: 9px; color: #ff6b35; font-weight: 500; margin-top: 2px;">⭐ 关键节点</div>` : ''}
-            </div>`;
-          }
-
-          gridHtml += '</div>';
-        }
-        gridHtml += '</div>';
-
-        // Daily summaries row
-        let summaryHtml = `<div style="display: flex; border-top: 1px solid #e8e8e8; background: #fafbfc; padding: 8px 0;">`;
-        summaryHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8; font-size: 10px; color: #999; text-align: center; padding-top: 4px;">日报</div>`;
-        for (let i = 0; i < 7; i++) {
-          const date = allDates[i] || '';
-          const summary = schedule?.summaries?.[date];
-          const items = summary?.content ? summary.content.split('\n').filter(Boolean) : [];
-          summaryHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; padding: 4px 8px; min-height: 40px;">`;
-          items.forEach(item => {
-            summaryHtml += `<div style="font-size: 10px; color: #666; margin-bottom: 2px;">• ${item}</div>`;
-          });
-          summaryHtml += '</div>';
-        }
-        summaryHtml += '</div>';
-
-        exportContainer.innerHTML = `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; padding: 20px; background: #fff;">
-            <div style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #1a1a2e; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">施工日程表 · ${weekLabel}</div>
-            ${headerHtml}
-            ${gridHtml}
-            ${summaryHtml}
-          </div>
-        `;
-
-        document.body.appendChild(exportContainer);
-        await exportAsImage(exportContainer, `calendar-${weekLabel}`);
-        document.body.removeChild(exportContainer);
+        const weekLabel = dayjs(currentWeekStart || schedule?.dates?.[0]).format('YYYY-MM-DD');
+        await exportAsImage(element, `calendar-${weekLabel}`);
         message.success('图片导出成功');
       } catch (e) {
         message.error('导出失败，请重试');
@@ -232,7 +121,7 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
         setExporting(false);
       }
     },
-  }), [readOnly, schedule, currentWeekStart, createForm, weatherMap, taskColorMap]);
+  }), [readOnly, schedule, currentWeekStart, createForm]);
 
   // Mobile dimensions
   const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
@@ -454,122 +343,13 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
   const handleExportMobile = async () => {
     try {
       setExporting(true);
-      // For export, always use full 7 days regardless of visibleDays prop
-      const allDates = (schedule?.dates || []);
-      const weekLabel = dayjs(currentWeekStart || allDates[0]).format('YYYY-MM-DD');
-
-      // Create a hidden export container with full 7-day calendar
-      const exportContainer = document.createElement('div');
-      exportContainer.id = 'temp-export-container';
-      exportContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 1400px; background: #fff;';
-
-      const todayLocal = localDateString(new Date());
-      const dayNamesExport = dayNamesFull;
-      const PX_PER_HOUR_EXPORT = 50;
-      const TIME_AXIS_WIDTH_EXPORT = 48;
-
-      // Header row
-      let headerHtml = `<div style="display: flex; background: #fafbfc; border-bottom: 2px solid #e8e8e8;">`;
-      headerHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc;"></div>`;
-      for (let i = 0; i < 7; i++) {
-        const date = allDates[i] || '';
-        const d = new Date(date);
-        const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-        const isToday = date === todayLocal;
-        const w = weatherMap[date];
-        headerHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; text-align: center; padding: 6px 0;">
-          <div style="font-weight: 600; font-size: 14px; color: ${isToday ? '#1890ff' : '#1a1a2e'};">
-            ${dayNamesExport[i]} <span style="color: #999; font-weight: 400; font-size: 12px;">${dateStr}</span>
-            ${isToday ? '<span style="color: #ff4d4f; font-size: 11px;"> 今天</span>' : ''}
-          </div>
-          ${w ? `<div style="font-size: 12px; color: #888;">${w.icon} ${w.description} ${w.tempMin}°/${w.tempMax}°</div>` : ''}
-        </div>`;
+      const element = document.getElementById('calendar-export-target');
+      if (!element) {
+        message.error('导出失败：未找到日历元素');
+        return;
       }
-      headerHtml += '</div>';
-
-      // Calendar grid
-      let gridHtml = `<div style="display: flex;">`;
-      gridHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8; position: relative;">`;
-      for (let h = 0; h < 24; h++) {
-        gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; right: 0; font-size: 8px; color: #bbb; text-align: right; padding-right: 4px; padding-top: 1px;">${String(h).padStart(2, '0')}</div>`;
-      }
-      gridHtml += '</div>';
-
-      for (let i = 0; i < 7; i++) {
-        const date = allDates[i] || '';
-        const events = schedule?.events?.[date] || [];
-        const w = weatherMap[date];
-        const isRainy = w?.outdoorWarning;
-        const isToday = date === todayLocal;
-
-        gridHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; position: relative; height: ${24 * PX_PER_HOUR_EXPORT}px; background: ${isRainy ? '#fff8f0' : isToday ? '#f8faff' : 'transparent'};">`;
-
-        // Hour lines
-        for (let h = 0; h < 24; h++) {
-          gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; left: 0; right: 0; border-top: 1px dashed #f0f0f0;"></div>`;
-        }
-
-        // Events - paper card style matching EventCard
-        for (const ev of events) {
-          const [startH, startM] = ev.start_time.split(':').map(Number);
-          const [endH, endM] = ev.end_time.split(':').map(Number);
-          const startVal = startH + startM / 60;
-          const endVal = endH + endM / 60;
-          const topPx = startVal * PX_PER_HOUR_EXPORT;
-          const heightPx = Math.max(30, (endVal - startVal) * PX_PER_HOUR_EXPORT);
-          const taskColor = ev.task_id ? taskColorMap[ev.task_id] : undefined;
-          const cardBg = taskColor ? taskColor : '#e8f4fd';
-          const cardBgLight = taskColor ? `${taskColor}15` : '#f0f7ff';
-
-          // Paper card style with task color background
-          gridHtml += `<div style="position: absolute; left: 4px; right: 4px; top: ${topPx}px; height: ${heightPx}px;
-            background: linear-gradient(135deg, ${cardBgLight} 0%, ${cardBg}40 100%);
-            border: 1px solid ${cardBg}60;
-            border-left: 3px solid ${cardBg};
-            border-radius: 8px;
-            padding: 4px 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
-          ">
-            <div style="font-size: 11px; font-weight: 600; color: #1a1a2e; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.title}</div>
-            <div style="font-size: 10px; color: #666; margin-bottom: 2px;">${ev.start_time}-${ev.end_time}</div>
-            ${ev.location ? `<div style="font-size: 10px; color: #888;"><span>📍</span> ${ev.location}</div>` : ''}
-            ${ev.assigned_team ? `<div style="font-size: 10px; color: #555;"><span>👤</span> ${ev.assigned_team}</div>` : ''}
-            ${ev.is_milestone ? `<div style="font-size: 9px; color: #ff6b35; font-weight: 500; margin-top: 2px;">⭐ 关键节点</div>` : ''}
-          </div>`;
-        }
-
-        gridHtml += '</div>';
-      }
-      gridHtml += '</div>';
-
-      // Daily summaries row
-      let summaryHtml = `<div style="display: flex; border-top: 1px solid #e8e8e8; background: #fafbfc; padding: 8px 0;">`;
-      summaryHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8; font-size: 10px; color: #999; text-align: center; padding-top: 4px;">日报</div>`;
-      for (let i = 0; i < 7; i++) {
-        const date = allDates[i] || '';
-        const summary = schedule?.summaries?.[date];
-        const items = summary?.content ? summary.content.split('\n').filter(Boolean) : [];
-        summaryHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; padding: 4px 8px; min-height: 40px;">`;
-        items.forEach(item => {
-          summaryHtml += `<div style="font-size: 10px; color: #666; margin-bottom: 2px;">• ${item}</div>`;
-        });
-        summaryHtml += '</div>';
-      }
-      summaryHtml += '</div>';
-
-      exportContainer.innerHTML = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft yaHei', sans-serif; padding: 20px; background: #fff;">
-          <div style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #1a1a2e; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">施工日程表 · ${weekLabel}</div>
-          ${headerHtml}
-          ${gridHtml}
-          ${summaryHtml}
-        </div>
-      `;
-
-      document.body.appendChild(exportContainer);
-      await exportAsImage(exportContainer, `calendar-${weekLabel}`);
-      document.body.removeChild(exportContainer);
+      const weekLabel = dayjs(currentWeekStart || schedule?.dates?.[0]).format('YYYY-MM-DD');
+      await exportAsImage(element, `calendar-${weekLabel}`);
       message.success('图片导出成功');
     } catch (e) {
       message.error('导出失败，请重试');
