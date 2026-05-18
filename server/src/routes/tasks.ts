@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
+import { authenticate } from '../middleware/auth';
+
+const router = Router();
 
 function generateColor(seed: string): string {
   const colors = [
@@ -13,21 +16,22 @@ function generateColor(seed: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-const router = Router();
+router.use(authenticate);
 
 router.get('/', (_req: Request, res: Response) => {
   const db = getDb();
+  const userId = _req.userId;
   const status = _req.query.status as string | undefined;
   const stmt = status
-    ? db.prepare('SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC')
-    : db.prepare('SELECT * FROM tasks ORDER BY created_at DESC');
-  const tasks = status ? stmt.all(status) : stmt.all();
+    ? db.prepare('SELECT * FROM tasks WHERE status = ? AND (user_id = ? OR user_id = \'system\') ORDER BY created_at DESC')
+    : db.prepare('SELECT * FROM tasks WHERE (user_id = ? OR user_id = \'system\') ORDER BY created_at DESC');
+  const tasks = status ? stmt.all(status, userId) : stmt.all(userId);
   res.json(tasks);
 });
 
 router.get('/:id', (_req: Request, res: Response) => {
   const db = getDb();
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(_req.params.id);
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND (user_id = ? OR user_id = \'system\')').get(_req.params.id, _req.userId);
   if (!task) return res.status(404).json({ error: '任务不存在' });
   res.json(task);
 });
@@ -39,8 +43,8 @@ router.post('/', (_req: Request, res: Response) => {
   const id = `task-${Date.now()}`;
   const taskColor = color || generateColor(project_name);
   const result = db.prepare(
-    'INSERT INTO tasks (id, project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, project_name, location, assigned_team || null, status || 'entrusted', progress || 0, planned_start_date || null, deadline || null, notes || '', taskColor, now, now);
+    'INSERT INTO tasks (id, project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, project_name, location, assigned_team || null, status || 'entrusted', progress || 0, planned_start_date || null, deadline || null, notes || '', taskColor, _req.userId, now, now);
   if (result.changes === 0) return res.status(500).json({ error: '创建任务失败' });
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
   res.status(201).json(task);
@@ -51,8 +55,8 @@ router.put('/:id', (_req: Request, res: Response) => {
   const { project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color } = _req.body;
   const now = new Date().toISOString();
   const result = db.prepare(
-    'UPDATE tasks SET project_name = COALESCE(?, project_name), location = COALESCE(?, location), assigned_team = COALESCE(?, assigned_team), status = COALESCE(?, status), progress = COALESCE(?, progress), planned_start_date = COALESCE(?, planned_start_date), deadline = COALESCE(?, deadline), notes = COALESCE(?, notes), color = COALESCE(?, color), updated_at = ? WHERE id = ?'
-  ).run(project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color, now, _req.params.id);
+    'UPDATE tasks SET project_name = COALESCE(?, project_name), location = COALESCE(?, location), assigned_team = COALESCE(?, assigned_team), status = COALESCE(?, status), progress = COALESCE(?, progress), planned_start_date = COALESCE(?, planned_start_date), deadline = COALESCE(?, deadline), notes = COALESCE(?, notes), color = COALESCE(?, color), updated_at = ? WHERE id = ? AND (user_id = ? OR user_id = \'system\')'
+  ).run(project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color, now, _req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: '任务不存在' });
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(_req.params.id);
   res.json(task);
@@ -65,8 +69,8 @@ router.put('/:id/status', (_req: Request, res: Response) => {
   if (!validStatuses.includes(status)) return res.status(400).json({ error: '状态无效' });
   const now = new Date().toISOString();
   const result = db.prepare(
-    'UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?'
-  ).run(status, now, _req.params.id);
+    'UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND (user_id = ? OR user_id = \'system\')'
+  ).run(status, now, _req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: '任务不存在' });
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(_req.params.id);
   res.json(task);
@@ -74,7 +78,7 @@ router.put('/:id/status', (_req: Request, res: Response) => {
 
 router.delete('/:id', (_req: Request, res: Response) => {
   const db = getDb();
-  const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(_req.params.id);
+  const task = db.prepare('SELECT id FROM tasks WHERE id = ? AND (user_id = ? OR user_id = \'system\')').get(_req.params.id, _req.userId);
   if (!task) return res.status(404).json({ error: '任务不存在' });
   db.prepare('DELETE FROM schedule_events WHERE task_id = ?').run(_req.params.id);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(_req.params.id);

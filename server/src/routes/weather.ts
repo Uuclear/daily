@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticate);
 
 interface WeatherResult {
   date: string;
@@ -79,6 +82,7 @@ function todayLocal(): string {
 }
 
 router.get('/', async (_req: Request, res: Response) => {
+  const userId = _req.userId;
   const { city = '上海', days = '7' } = _req.query;
   const cityName = city as string;
   const numDays = parseInt(days as string, 10);
@@ -100,9 +104,9 @@ router.get('/', async (_req: Request, res: Response) => {
   const placeholders = dateRange.map(() => '?').join(',');
   const cached = db.prepare(
     `SELECT date, city, condition, icon, temp_min, temp_max, description FROM weather_cache
-     WHERE city = ? AND date IN (${placeholders})
+     WHERE city = ? AND (user_id = ? OR user_id = 'system') AND date IN (${placeholders})
      ORDER BY date ASC`
-  ).all(cityName, ...dateRange);
+  ).all(cityName, userId, ...dateRange);
 
   // If we have all dates cached, return them immediately
   if (cached.length === dateRange.length) {
@@ -148,8 +152,8 @@ router.get('/', async (_req: Request, res: Response) => {
 
     const now = new Date().toISOString();
     const upsert = db.prepare(
-      `INSERT INTO weather_cache (date, city, condition, icon, temp_min, temp_max, description, fetched_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO weather_cache (date, city, condition, icon, temp_min, temp_max, description, fetched_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(date, city) DO UPDATE SET
          condition = excluded.condition,
          icon = excluded.icon,
@@ -172,7 +176,7 @@ router.get('/', async (_req: Request, res: Response) => {
         description: mapped.description,
         outdoorWarning: ['rain', 'heavy_rain', 'snow', 'fog'].includes(mapped.condition),
       };
-      upsert.run(dateStr, cityName, mapped.condition, mapped.icon, entry.tempMin, entry.tempMax, mapped.description, now);
+      upsert.run(dateStr, cityName, mapped.condition, mapped.icon, entry.tempMin, entry.tempMax, mapped.description, now, userId);
       return entry;
     });
 

@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticate);
 
 function getWeekDates(dateStr?: string): string[] {
   const date = dateStr ? new Date(dateStr) : new Date();
@@ -20,20 +23,21 @@ function getWeekDates(dateStr?: string): string[] {
 
 router.get('/', (_req: Request, res: Response) => {
   const db = getDb();
+  const userId = _req.userId;
   const { week, date } = _req.query as { week?: string; date?: string };
   const dates = getWeekDates(date || week);
 
-  const stmt = db.prepare('SELECT * FROM schedule_events WHERE date = ? ORDER BY start_time');
+  const stmt = db.prepare('SELECT * FROM schedule_events WHERE date = ? AND (user_id = ? OR user_id = \'system\') ORDER BY start_time');
   const events: Record<string, any[]> = {};
   dates.forEach(d => {
-    events[d] = stmt.all(d);
+    events[d] = stmt.all(d, userId);
   });
 
   // Get daily summaries
-  const summaryStmt = db.prepare('SELECT * FROM daily_summaries WHERE date = ?');
+  const summaryStmt = db.prepare('SELECT * FROM daily_summaries WHERE date = ? AND (user_id = ? OR user_id = \'system\')');
   const summaries: Record<string, any> = {};
   dates.forEach(d => {
-    const s = summaryStmt.get(d);
+    const s = summaryStmt.get(d, userId);
     if (s) summaries[d] = s;
   });
 
@@ -42,6 +46,7 @@ router.get('/', (_req: Request, res: Response) => {
 
 router.post('/', (_req: Request, res: Response) => {
   const db = getDb();
+  const userId = _req.userId;
   const { task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes } = _req.body;
 
   // Validate time format
@@ -55,10 +60,10 @@ router.post('/', (_req: Request, res: Response) => {
 
   const actualEnd = end_time || start_time;
 
-  // Check for overlapping events on the same date
+  // Check for overlapping events on the same date (only user's events)
   const existing = db.prepare(
-    'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ?'
-  ).all(date) as { id: string; start_time: string; end_time: string; title: string }[];
+    'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ? AND (user_id = ? OR user_id = \'system\')'
+  ).all(date, userId) as { id: string; start_time: string; end_time: string; title: string }[];
 
   for (const ev of existing) {
     const evEnd = ev.end_time || ev.start_time;
@@ -74,8 +79,8 @@ router.post('/', (_req: Request, res: Response) => {
 
   const id = `event-${Date.now()}`;
   const result = db.prepare(
-    'INSERT INTO schedule_events (id, task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, task_id || null, date, start_time, actualEnd, title, work_content || '', is_milestone ? 1 : 0, assigned_team || null, location || '', notes || '');
+    'INSERT INTO schedule_events (id, task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, task_id || null, date, start_time, actualEnd, title, work_content || '', is_milestone ? 1 : 0, assigned_team || null, location || '', notes || '', userId);
   if (result.changes === 0) return res.status(500).json({ error: '创建日程失败' });
   const event = db.prepare('SELECT * FROM schedule_events WHERE id = ?').get(id);
   res.status(201).json(event);
@@ -101,8 +106,8 @@ router.put('/:id', (_req: Request, res: Response) => {
   if (checkDate && newStart) {
     const actualEnd = newEnd || newStart;
     const existing = db.prepare(
-      'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ?'
-    ).all(checkDate) as { id: string; start_time: string; end_time: string; title: string }[];
+      'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ? AND (user_id = ? OR user_id = \'system\')'
+    ).all(checkDate, _req.userId) as { id: string; start_time: string; end_time: string; title: string }[];
 
     for (const ev of existing) {
       if (ev.id === _req.params.id) continue; // skip self
@@ -117,8 +122,8 @@ router.put('/:id', (_req: Request, res: Response) => {
   }
 
   const result = db.prepare(
-    'UPDATE schedule_events SET task_id = COALESCE(?, task_id), date = COALESCE(?, date), start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), title = COALESCE(?, title), work_content = COALESCE(?, work_content), is_milestone = COALESCE(?, is_milestone), assigned_team = COALESCE(?, assigned_team), location = COALESCE(?, location), notes = COALESCE(?, notes) WHERE id = ?'
-  ).run(task_id, date, start_time, end_time, title, work_content, is_milestone !== undefined ? (is_milestone ? 1 : 0) : undefined, assigned_team, location, notes, _req.params.id);
+    'UPDATE schedule_events SET task_id = COALESCE(?, task_id), date = COALESCE(?, date), start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), title = COALESCE(?, title), work_content = COALESCE(?, work_content), is_milestone = COALESCE(?, is_milestone), assigned_team = COALESCE(?, assigned_team), location = COALESCE(?, location), notes = COALESCE(?, notes) WHERE id = ? AND (user_id = ? OR user_id = \'system\')'
+  ).run(task_id, date, start_time, end_time, title, work_content, is_milestone !== undefined ? (is_milestone ? 1 : 0) : undefined, assigned_team, location, notes, _req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: '日程不存在' });
   const event = db.prepare('SELECT * FROM schedule_events WHERE id = ?').get(_req.params.id);
   res.json(event);
@@ -126,7 +131,7 @@ router.put('/:id', (_req: Request, res: Response) => {
 
 router.delete('/:id', (_req: Request, res: Response) => {
   const db = getDb();
-  const result = db.prepare('DELETE FROM schedule_events WHERE id = ?').run(_req.params.id);
+  const result = db.prepare('DELETE FROM schedule_events WHERE id = ? AND (user_id = ? OR user_id = \'system\')').run(_req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: '日程不存在' });
   res.json({ success: true });
 });
@@ -143,8 +148,8 @@ router.post('/check-conflict', (_req: Request, res: Response) => {
   const actualEnd = end_time || start_time;
 
   const existing = db.prepare(
-    'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ?'
-  ).all(date) as { id: string; start_time: string; end_time: string; title: string }[];
+    'SELECT id, start_time, end_time, title FROM schedule_events WHERE date = ? AND (user_id = ? OR user_id = \'system\')'
+  ).all(date, _req.userId) as { id: string; start_time: string; end_time: string; title: string }[];
 
   for (const ev of existing) {
     if (exclude_id && ev.id === exclude_id) continue;
@@ -160,13 +165,14 @@ router.post('/check-conflict', (_req: Request, res: Response) => {
 // Daily summaries
 router.post('/summary', (_req: Request, res: Response) => {
   const db = getDb();
+  const userId = _req.userId;
   const { date, content } = _req.body;
   const now = new Date().toISOString();
   const id = `sum-${Date.now()}`;
   db.prepare(
-    'INSERT INTO daily_summaries (id, date, content, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(date) DO UPDATE SET content = ?, updated_at = ?'
-  ).run(id, date, content || '', now, content || '', now);
-  const summary = db.prepare('SELECT * FROM daily_summaries WHERE date = ?').get(date);
+    'INSERT INTO daily_summaries (id, date, content, updated_at, user_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT(date) DO UPDATE SET content = ?, updated_at = ?'
+  ).run(id, date, content || '', now, userId, content || '', now);
+  const summary = db.prepare('SELECT * FROM daily_summaries WHERE date = ? AND (user_id = ? OR user_id = \'system\')').get(date, userId);
   res.json(summary);
 });
 
