@@ -60,6 +60,30 @@ CREATE TABLE IF NOT EXISTS weather_cache (
   PRIMARY KEY (date, city)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+ALTER TABLE tasks ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+ALTER TABLE schedule_events ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+ALTER TABLE daily_summaries ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+ALTER TABLE persons ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+ALTER TABLE teams ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+ALTER TABLE weather_cache ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_schedule_events_date ON schedule_events(date);
 CREATE INDEX IF NOT EXISTS idx_daily_summaries_date ON daily_summaries(date);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_events_user_id ON schedule_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_daily_summaries_user_id ON daily_summaries(user_id);
+CREATE INDEX IF NOT EXISTS idx_persons_user_id ON persons(user_id);
+CREATE INDEX IF NOT EXISTS idx_teams_user_id ON teams(user_id);
+CREATE INDEX IF NOT EXISTS idx_weather_cache_user_id ON weather_cache(user_id);

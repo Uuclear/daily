@@ -45,6 +45,39 @@ export function getDb(): Database.Database {
     } catch {
       // Table already exists
     }
+
+    // Migration: add users table
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        display_name TEXT NOT NULL DEFAULT '',
+        role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`);
+    } catch { /* already exists */ }
+
+    // Migration: add user_id to all business tables
+    const userColumns = [
+      { table: 'tasks', col: 'user_id' },
+      { table: 'schedule_events', col: 'user_id' },
+      { table: 'daily_summaries', col: 'user_id' },
+      { table: 'persons', col: 'user_id' },
+      { table: 'teams', col: 'user_id' },
+      { table: 'weather_cache', col: 'user_id' },
+    ];
+    for (const { table, col } of userColumns) {
+      try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} TEXT REFERENCES users(id) DEFAULT 'system'`); } catch { /* already exists */ }
+    }
+
+    // Create default 'system' user for existing data
+    try {
+      db.exec(`INSERT INTO users (id, username, password_hash, display_name, role, created_at, updated_at)
+        VALUES ('system', 'system', 'N/A', '系统', 'admin', datetime('now'), datetime('now'))
+        ON CONFLICT(id) DO NOTHING`);
+    } catch { /* already exists */ }
   }
   return db;
 }
