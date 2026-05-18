@@ -11,7 +11,7 @@ router.get('/', (req: Request, res: Response) => {
   const keyword = String(q || '').trim();
 
   if (!keyword) {
-    return res.status(400).json({ error: 'Search keyword required' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Search keyword required' });
   }
 
   const db = getDb();

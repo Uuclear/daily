@@ -17,23 +17,23 @@ router.post('/register', async (req: Request, res: Response) => {
 
   // Validation
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Username and password are required' });
   }
 
   if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Username and password must be strings' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Username and password must be strings' });
   }
 
   if (username.length < 3 || username.length > 30) {
-    return res.status(400).json({ error: 'Username must be between 3 and 30 characters' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Username must be between 3 and 30 characters' });
   }
 
   if (!/^[a-zA-Z0-9]+$/.test(username)) {
-    return res.status(400).json({ error: 'Username must be alphanumeric' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Username must be alphanumeric' });
   }
 
   if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Password must be at least 6 characters' });
   }
 
   const db = getDb();
@@ -41,7 +41,7 @@ router.post('/register', async (req: Request, res: Response) => {
   // Check if username already exists
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (existing) {
-    return res.status(409).json({ error: 'Username already exists' });
+    return res.status(409).json({ error: 'Conflict', message: 'Username already exists' });
   }
 
   // Hash password and insert user
@@ -55,7 +55,7 @@ router.post('/register', async (req: Request, res: Response) => {
   ).run(id, username, password_hash, displayName, 'user', now, now);
 
   if (result.changes === 0) {
-    return res.status(500).json({ error: 'Failed to create user' });
+    return res.status(500).json({ error: 'InternalError', message: 'Failed to create user' });
   }
 
   res.status(201).json({
@@ -72,7 +72,7 @@ router.post('/login', async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+    return res.status(400).json({ error: 'BadRequest', message: 'Username and password are required' });
   }
 
   const db = getDb();
@@ -116,7 +116,7 @@ router.get('/me', authenticate, (req: Request, res: Response) => {
     | undefined;
 
   if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+    return res.status(404).json({ error: 'NotFound', message: 'User not found' });
   }
 
   res.json(user);

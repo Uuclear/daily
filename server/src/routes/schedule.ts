@@ -52,10 +52,10 @@ router.post('/', (_req: Request, res: Response) => {
   // Validate time format
   const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
   if (!timeRegex.test(start_time)) {
-    return res.status(400).json({ error: '开始时间格式无效，应为 HH:MM（00:00-23:59）' });
+    return res.status(400).json({ error: 'BadRequest', message: '开始时间格式无效，应为 HH:MM（00:00-23:59）' });
   }
   if (end_time && !timeRegex.test(end_time)) {
-    return res.status(400).json({ error: '结束时间格式无效，应为 HH:MM（00:00-23:59）' });
+    return res.status(400).json({ error: 'BadRequest', message: '结束时间格式无效，应为 HH:MM（00:00-23:59）' });
   }
 
   const actualEnd = end_time || start_time;
@@ -70,9 +70,9 @@ router.post('/', (_req: Request, res: Response) => {
     // Overlap: newStart < existingEnd AND newEnd > existingStart
     if (start_time < evEnd && actualEnd > ev.start_time) {
       return res.status(409).json({
-        error: `时间冲突：与已有日程"${ev.title}"（${ev.start_time}-${evEnd}）重叠`,
-        conflict: true,
-        conflictEvent: ev,
+        error: 'Conflict',
+        message: `时间冲突：与已有日程"${ev.title}"（${ev.start_time}-${evEnd}）重叠`,
+        details: { conflict: true, conflictEvent: ev },
       });
     }
   }
@@ -81,7 +81,7 @@ router.post('/', (_req: Request, res: Response) => {
   const result = db.prepare(
     'INSERT INTO schedule_events (id, task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   ).run(id, task_id || null, date, start_time, actualEnd, title, work_content || '', is_milestone ? 1 : 0, assigned_team || null, location || '', notes || '', userId);
-  if (result.changes === 0) return res.status(500).json({ error: '创建日程失败' });
+  if (result.changes === 0) return res.status(500).json({ error: 'InternalError', message: '创建日程失败' });
   const event = db.prepare('SELECT * FROM schedule_events WHERE id = ?').get(id);
   res.status(201).json(event);
 });
@@ -95,10 +95,10 @@ router.put('/:id', (_req: Request, res: Response) => {
   const newStart = start_time || null;
   const newEnd = end_time || null;
   if (newStart && !timeRegex.test(newStart)) {
-    return res.status(400).json({ error: '开始时间格式无效，应为 HH:MM（00:00-23:59）' });
+    return res.status(400).json({ error: 'BadRequest', message: '开始时间格式无效，应为 HH:MM（00:00-23:59）' });
   }
   if (newEnd && !timeRegex.test(newEnd)) {
-    return res.status(400).json({ error: '结束时间格式无效，应为 HH:MM（00:00-23:59）' });
+    return res.status(400).json({ error: 'BadRequest', message: '结束时间格式无效，应为 HH:MM（00:00-23:59）' });
   }
 
   // Check for overlapping events if date/time changed
@@ -114,8 +114,9 @@ router.put('/:id', (_req: Request, res: Response) => {
       const evEnd = ev.end_time || ev.start_time;
       if (newStart < evEnd && actualEnd > ev.start_time) {
         return res.status(409).json({
-          error: `时间冲突：与已有日程"${ev.title}"（${ev.start_time}-${evEnd}）重叠`,
-          conflict: true,
+          error: 'Conflict',
+          message: `时间冲突：与已有日程"${ev.title}"（${ev.start_time}-${evEnd}）重叠`,
+          details: { conflict: true },
         });
       }
     }
@@ -124,7 +125,7 @@ router.put('/:id', (_req: Request, res: Response) => {
   const result = db.prepare(
     'UPDATE schedule_events SET task_id = COALESCE(?, task_id), date = COALESCE(?, date), start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), title = COALESCE(?, title), work_content = COALESCE(?, work_content), is_milestone = COALESCE(?, is_milestone), assigned_team = COALESCE(?, assigned_team), location = COALESCE(?, location), notes = COALESCE(?, notes) WHERE id = ? AND (user_id = ? OR user_id = \'system\')'
   ).run(task_id, date, start_time, end_time, title, work_content, is_milestone !== undefined ? (is_milestone ? 1 : 0) : undefined, assigned_team, location, notes, _req.params.id, _req.userId);
-  if (result.changes === 0) return res.status(404).json({ error: '日程不存在' });
+  if (result.changes === 0) return res.status(404).json({ error: 'NotFound', message: '日程不存在' });
   const event = db.prepare('SELECT * FROM schedule_events WHERE id = ?').get(_req.params.id);
   res.json(event);
 });
@@ -132,7 +133,7 @@ router.put('/:id', (_req: Request, res: Response) => {
 router.delete('/:id', (_req: Request, res: Response) => {
   const db = getDb();
   const result = db.prepare('DELETE FROM schedule_events WHERE id = ? AND (user_id = ? OR user_id = \'system\')').run(_req.params.id, _req.userId);
-  if (result.changes === 0) return res.status(404).json({ error: '日程不存在' });
+  if (result.changes === 0) return res.status(404).json({ error: 'NotFound', message: '日程不存在' });
   res.json({ success: true });
 });
 
@@ -143,7 +144,7 @@ router.post('/check-conflict', (_req: Request, res: Response) => {
 
   const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
   if (!timeRegex.test(start_time)) {
-    return res.status(400).json({ error: '开始时间格式无效' });
+    return res.status(400).json({ error: 'BadRequest', message: '开始时间格式无效' });
   }
   const actualEnd = end_time || start_time;
 

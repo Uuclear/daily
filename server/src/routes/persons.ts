@@ -15,7 +15,7 @@ router.get('/', (_req: Request, res: Response) => {
 router.post('/', (_req: Request, res: Response) => {
   const db = getDb();
   const { name } = _req.body;
-  if (!name) return res.status(400).json({ error: '名称不能为空' });
+  if (!name) return res.status(400).json({ error: 'BadRequest', message: '名称不能为空' });
   const id = `person-${Date.now()}`;
   try {
     db.prepare('INSERT INTO persons (id, name, user_id) VALUES (?, ?, ?)').run(id, name, _req.userId);
