@@ -86,3 +86,31 @@ export const search = async (keyword: string): Promise<{ tasks: SearchResult[]; 
   const { data } = await api.get('/search', { params: { q: keyword } });
   return data;
 };
+
+export interface NotificationSettings {
+  enabled: boolean;
+  reminder_days: number;
+  reminder_time: string;
+  notify_on_deadline: boolean;
+  notify_on_schedule: boolean;
+}
+
+export interface UpcomingNotification {
+  tasks: any[];
+  events: any[];
+}
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const { data } = await api.get<NotificationSettings>('/notifications/settings');
+  return data;
+}
+
+export async function updateNotificationSettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
+  const { data } = await api.put<NotificationSettings>('/notifications/settings', settings);
+  return data;
+}
+
+export async function getUpcomingNotifications(): Promise<UpcomingNotification> {
+  const { data } = await api.get<UpcomingNotification>('/notifications/upcoming');
+  return data;
+}

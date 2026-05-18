@@ -5,6 +5,7 @@ import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, SearchOutlined 
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
 import { SearchModal } from '../../SearchModal';
+import { NotificationPanel } from '../../NotificationPanel';
 import { useResponsive } from '../../hooks/useResponsive';
 import { message } from 'antd';
 import type { Task, ScheduleEvent } from '../../types/models';
@@ -60,7 +61,8 @@ export function Dashboard() {
             <strong style={{ fontSize: 14 }}>项目任务池</strong>
             {taskPoolCollapsed ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <UpOutlined style={{ fontSize: 10, color: '#999' }} />}
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <NotificationPanel />
             <Button size="small" icon={<SearchOutlined />} onClick={() => setSearchOpen(true)} />
             <Button size="small" icon={<ReloadOutlined />} onClick={() => setTaskPoolRefresh(true)} />
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setTaskPoolCreate(true)}>
@@ -101,7 +103,11 @@ export function Dashboard() {
           top: 8,
           right: 16,
           zIndex: 100,
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
         }}>
+          <NotificationPanel />
           <Button icon={<SearchOutlined />} onClick={() => setSearchOpen(true)}>
             搜索
           </Button>
