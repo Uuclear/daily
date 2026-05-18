@@ -67,6 +67,23 @@ export function SearchModal({ open, onClose, onTaskSelect, onEventSelect }: Sear
     onClose();
   };
 
+  const fieldLabels: Record<string, string> = {
+    project_name: '项目名',
+    location: '地点',
+    notes: '备注',
+    assigned_team: '负责人',
+    title: '日程标题',
+    work_content: '工作内容',
+    deadline: '截止日期',
+  };
+
+  const statusLabels: Record<string, string> = {
+    entrusted: '待委托',
+    in_progress: '进行中',
+    reporting: '报告出具',
+    completed: '已完成',
+  };
+
   const renderTaskItem = (item: SearchResult) => (
     <List.Item
       onClick={() => handleTaskClick(item)}
@@ -75,11 +92,11 @@ export function SearchModal({ open, onClose, onTaskSelect, onEventSelect }: Sear
       <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <Text strong>{item.project_name}</Text>
-          <Tag color="blue">{item.matchedField}</Tag>
+          <Tag color="blue">{fieldLabels[item.matchedField] || item.matchedField}</Tag>
         </div>
         <div style={{ fontSize: 12, color: '#888' }}>
-          {item.status} &middot; 进度 {item.progress}%
-          {item.assigned_team && <> &middot; {item.assigned_team}</>}
+          {statusLabels[item.status] || item.status} · 进度 {item.progress}%
+          {item.assigned_team && <> · {item.assigned_team}</>}
         </div>
       </div>
     </List.Item>
@@ -93,10 +110,11 @@ export function SearchModal({ open, onClose, onTaskSelect, onEventSelect }: Sear
       <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <Text strong>{item.title}</Text>
-          <Tag color="green">{item.matchedField}</Tag>
+          <Tag color="green">{fieldLabels[item.matchedField] || item.matchedField}</Tag>
         </div>
         <div style={{ fontSize: 12, color: '#888' }}>
-          {item.date} &middot; {item.start_time}-{item.end_time}
+          {item.date} · {item.start_time}-{item.end_time}
+          {item.location && <> · {item.location}</>}
         </div>
       </div>
     </List.Item>

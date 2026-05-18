@@ -22,15 +22,13 @@ function localDateString(d: Date): string {
 interface WeekCalendarProps {
   visibleDays?: number;
   isMobile?: boolean;
-  // Desktop floating nav extras
-  user?: { display_name?: string; username?: string } | null;
-  onLogout?: () => void;
-  onSearch?: () => void;
-  notificationCount?: number;
+  readOnly?: boolean; // 只读模式（未登录时）
+  jumpToDate?: string | null; // 跳转到指定日期所在的周
+  onJumpComplete?: () => void; // 跳转完成回调
 }
 
-export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout, onSearch, notificationCount = 0 }: WeekCalendarProps) {
-  const { schedule, loading, currentWeekStart, prevWeek, nextWeek, goToToday, addEvent, updateEvent, removeEvent, updateSummary } = useSchedule();
+export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = false, jumpToDate, onJumpComplete }: WeekCalendarProps) {
+  const { schedule, loading, currentWeekStart, prevWeek, nextWeek, goToToday, goToWeek, addEvent, updateEvent, removeEvent, updateSummary } = useSchedule();
   const { weather, loading: weatherLoading } = useWeather();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -121,6 +119,14 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
     }
   });
 
+  // Handle jumpToDate (from search result click)
+  useEffect(() => {
+    if (jumpToDate && goToWeek) {
+      goToWeek(jumpToDate);
+      onJumpComplete?.();
+    }
+  }, [jumpToDate, goToWeek, onJumpComplete]);
+
   // Filter to visible days (first N days of the week)
   const visibleDates = schedule.dates.slice(0, visibleDays);
   const today = localDateString(new Date());
@@ -140,6 +146,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
   };
 
   const openCreateModal = (date: string, time?: string) => {
+    if (readOnly) return; // 禁止未登录用户创建
     const timeVal = time ? dayjs(time, 'HH:mm') : dayjs().hour(8).minute(0).second(0).millisecond(0);
     createForm.setFieldsValue({
       date: dayjs(date),
@@ -204,6 +211,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
   };
 
   const openEditModal = (ev: ScheduleEvent) => {
+    if (readOnly) return; // 禁止未登录用户编辑
     setEditingEvent(ev);
     editForm.setFieldsValue({
       title: ev.title,
@@ -323,7 +331,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
 
   const totalDays = visibleDates.length;
 
-  // Navigation bar
+  // Navigation bar (simplified - only nav buttons, user buttons are in Dashboard)
   const navBar = isMobile ? (
     <div style={{
       background: '#fff',
@@ -346,77 +354,13 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
       </Button>
       <div style={{ flex: 1 }} />
       <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} onClick={handleExportImage} loading={exporting} />
-      <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>
-        添加
-      </Button>
+      {!readOnly && (
+        <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>
+          添加
+        </Button>
+      )}
     </div>
-  ) : (
-    <div
-      style={{
-        position: 'absolute',
-        top: navPos.top,
-        left: navPos.left,
-        zIndex: 50,
-        cursor: 'grab',
-        opacity: 0.92,
-      }}
-      onMouseDown={handleNavMouseDown}
-    >
-      <div style={{
-        padding: '5px 8px',
-        background: 'rgba(26,26,46,0.88)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }}>
-        {/* Coordinate icon - placeholder */}
-        <EnvironmentOutlined style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginRight: 4 }} />
-        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
-        {/* User info */}
-        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <UserOutlined style={{ fontSize: 10, marginRight: 4 }} />
-          {user?.display_name || user?.username || '用户'}
-        </span>
-        {/* Logout */}
-        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={onLogout} title="退出">
-          <LogoutOutlined style={{ fontSize: 12 }} />
-        </Button>
-        {/* Notification */}
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <BellOutlined style={{ color: notificationCount > 0 ? '#ff4d4f' : 'rgba(255,255,255,0.7)', fontSize: 12 }} />
-          {notificationCount > 0 && (
-            <span style={{ position: 'absolute', top: -6, right: -6, background: '#ff4d4f', color: '#fff', fontSize: 9, minWidth: 14, height: 14, borderRadius: 7, textAlign: 'center', lineHeight: '14px', fontWeight: 600 }}>
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </div>
-        {/* Search */}
-        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={onSearch} title="搜索">
-          <SearchOutlined style={{ fontSize: 12 }} />
-        </Button>
-        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
-        {/* Navigation */}
-        <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={prevWeek}>
-          <LeftOutlined style={{ fontSize: 10 }} />
-        </Button>
-        <Button type="primary" size="small" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', width: 48, minWidth: 48, padding: 0, height: 24, borderRadius: 8, fontWeight: 500 }} onClick={goToToday}>
-          今日
-        </Button>
-        <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={nextWeek}>
-          <RightOutlined style={{ fontSize: 10 }} />
-        </Button>
-        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
-        {/* Export */}
-        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={handleExportImage} loading={exporting} title="导出图片">
-          <DownloadOutlined style={{ fontSize: 12 }} />
-        </Button>
-      </div>
-    </div>
-  );
+  ) : null; // Desktop nav bar is handled by Dashboard
 
   return (
     <div id="calendar-export-target" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: isMobile ? 'relative' : undefined }}>
@@ -544,6 +488,9 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
               {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
           </Form.Item>
+          <Form.Item name="location" label="地点">
+            <Input placeholder="施工地点（可选）" />
+          </Form.Item>
           <Form.Item name="is_milestone" label="关键节点" valuePropName="checked">
             <Switch />
           </Form.Item>
@@ -588,6 +535,9 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout
             <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
               {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
+          </Form.Item>
+          <Form.Item name="location" label="地点">
+            <Input placeholder="施工地点（可选）" />
           </Form.Item>
           <Form.Item name="is_milestone" label="关键节点" valuePropName="checked">
             <Switch />

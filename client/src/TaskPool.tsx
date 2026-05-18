@@ -11,13 +11,14 @@ const { TextArea } = Input;
 
 interface TaskPoolProps {
   compact?: boolean;
+  readOnly?: boolean; // 只读模式（未登录时）
   showCreate?: boolean;
   showRefresh?: boolean;
   onCreated?: () => void;
   onRefreshed?: () => void;
 }
 
-export function TaskPool({ compact, showCreate, showRefresh, onCreated, onRefreshed }: TaskPoolProps = {}) {
+export function TaskPool({ compact, readOnly = false, showCreate, showRefresh, onCreated, onRefreshed }: TaskPoolProps = {}) {
   const { tasks, loading, createTask, updateTask, updateTaskStatus, deleteTask, fetchTasks } = useTasks();
   const [filter, setFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,12 +108,13 @@ export function TaskPool({ compact, showCreate, showRefresh, onCreated, onRefres
             <TaskCardComponent
               key={task.id}
               task={task}
-              onUpdateStatus={handleStatusChange}
-              onDelete={handleDelete}
-              onProgressChange={async (id, progress) => {
+              onUpdateStatus={readOnly ? undefined : handleStatusChange}
+              onDelete={readOnly ? undefined : handleDelete}
+              onProgressChange={readOnly ? undefined : async (id, progress) => {
                 await api.updateTask(id, { progress });
                 fetchTasks();
               }}
+              onEdit={readOnly ? undefined : () => {}}
             />
           ))}
         </div>

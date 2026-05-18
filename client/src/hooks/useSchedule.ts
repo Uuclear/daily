@@ -109,5 +109,5 @@ export function useSchedule() {
     return saved;
   };
 
-  return { schedule, loading, error, currentWeekStart, prevWeek, nextWeek, goToToday, addEvent, updateEvent, removeEvent, updateSummary, refresh: () => fetchSchedule(currentWeekStart) };
+  return { schedule, loading, error, currentWeekStart, prevWeek, nextWeek, goToToday, goToWeek, addEvent, updateEvent, removeEvent, updateSummary, refresh: () => fetchSchedule(currentWeekStart) };
 }
