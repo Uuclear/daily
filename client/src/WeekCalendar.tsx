@@ -101,7 +101,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
 
   // Build task color lookup map
   const taskColorMap: Record<string, string> = {};
-  tasks.forEach(t => { if (t.color) taskColorMap[t.id] = t.color; });
+  (Array.isArray(tasks) ? tasks : []).forEach(t => { if (t.color) taskColorMap[t.id] = t.color; });
 
   // Auto-scroll to 8am
   const scrollTargetRef = useRef<number | null>(null);
@@ -133,7 +133,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
   const todayIndex = visibleDates.indexOf(today);
 
   const weatherMap: Record<string, any> = {};
-  (weather || []).forEach(w => { weatherMap[w.date] = w; });
+  (Array.isArray(weather) ? weather : []).forEach(w => { weatherMap[w.date] = w; });
 
   const dayNames = isMobile ? dayNamesShort : dayNamesFull;
 
@@ -480,12 +480,12 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
           </Space>
           <Form.Item name="task_id" label="关联任务">
             <Select allowClear placeholder="选择关联任务" showSearch optionFilterProp="children">
-              {tasks.map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
+              {(Array.isArray(tasks) ? tasks : []).map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
             </Select>
           </Form.Item>
           <Form.Item name="assigned_team" label="负责人">
             <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
-              {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
+              {(Array.isArray(persons) ? persons : []).map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
           </Form.Item>
           <Form.Item name="location" label="地点">
@@ -528,12 +528,12 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
           </Space>
           <Form.Item name="task_id" label="关联任务">
             <Select allowClear placeholder="选择关联任务" showSearch optionFilterProp="children">
-              {tasks.map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
+              {(Array.isArray(tasks) ? tasks : []).map(t => <Select.Option key={t.id} value={t.id}>{t.project_name}</Select.Option>)}
             </Select>
           </Form.Item>
           <Form.Item name="assigned_team" label="负责人">
             <Select allowClear placeholder="输入或选择负责人" showSearch mode="tags" maxCount={1} onSelect={handlePersonSelect}>
-              {persons.map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
+              {(Array.isArray(persons) ? persons : []).map(p => <Select.Option key={p} value={p}>{p}</Select.Option>)}
             </Select>
           </Form.Item>
           <Form.Item name="location" label="地点">
