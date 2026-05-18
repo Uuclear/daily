@@ -71,12 +71,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
-ALTER TABLE tasks ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
-ALTER TABLE schedule_events ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
-ALTER TABLE daily_summaries ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
-ALTER TABLE persons ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
-ALTER TABLE teams ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
-ALTER TABLE weather_cache ADD COLUMN user_id TEXT REFERENCES users(id) DEFAULT 'system';
+-- Note: user_id columns are added via migrations in init.ts (with try-catch for existing databases)
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_schedule_events_date ON schedule_events(date);
