@@ -1,15 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { Button } from 'antd';
-import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Button, message } from 'antd';
+import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, LogoutOutlined, SearchOutlined } from '@ant-design/icons';
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
 import { SearchModal } from '../../SearchModal';
 import { NotificationPanel } from '../../NotificationPanel';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useAuth } from '../../auth/AuthContext';
-import { message } from 'antd';
 import type { Task, ScheduleEvent } from '../../types/models';
 
 export function Dashboard() {
@@ -110,27 +109,6 @@ export function Dashboard() {
     <>
       <DndContext onDragEnd={handleDragEnd}>
         <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
-        {/* Top bar with search */}
-        <div style={{
-          position: 'absolute',
-          top: 8,
-          right: 16,
-          zIndex: 100,
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 13, color: '#666', marginRight: 4 }}>
-            {user?.display_name || user?.username}
-          </span>
-          <Button size="small" icon={<LogoutOutlined />} onClick={handleLogout}>
-            退出
-          </Button>
-          <NotificationPanel />
-          <Button icon={<SearchOutlined />} onClick={() => setSearchOpen(true)}>
-            搜索
-          </Button>
-        </div>
         <div style={{
           width: '22%',
           borderRight: 'none',
@@ -143,7 +121,14 @@ export function Dashboard() {
           <TaskPool />
         </div>
         <div style={{ width: '78%', overflow: 'hidden', background: '#fff' }}>
-          <WeekCalendar visibleDays={7} isMobile={false} />
+          <WeekCalendar
+            visibleDays={7}
+            isMobile={false}
+            user={user}
+            onLogout={handleLogout}
+            onSearch={() => setSearchOpen(true)}
+            notificationCount={0}
+          />
         </div>
       </div>
       </DndContext>

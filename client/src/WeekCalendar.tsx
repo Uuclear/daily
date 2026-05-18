@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker, Popconfirm } from 'antd';
-import { LeftOutlined, RightOutlined, PlusOutlined, DownloadOutlined } from '@ant-design/icons';
+import { LeftOutlined, RightOutlined, PlusOutlined, DownloadOutlined, EnvironmentOutlined, LogoutOutlined, SearchOutlined, UserOutlined, BellOutlined } from '@ant-design/icons';
 import type { ScheduleEvent, Task } from './types/models';
 import { WeatherCard } from './WeatherCard';
 import { EventCard } from './EventCard';
@@ -22,9 +22,14 @@ function localDateString(d: Date): string {
 interface WeekCalendarProps {
   visibleDays?: number;
   isMobile?: boolean;
+  // Desktop floating nav extras
+  user?: { display_name?: string; username?: string } | null;
+  onLogout?: () => void;
+  onSearch?: () => void;
+  notificationCount?: number;
 }
 
-export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendarProps) {
+export function WeekCalendar({ visibleDays = 7, isMobile = false, user, onLogout, onSearch, notificationCount = 0 }: WeekCalendarProps) {
   const { schedule, loading, currentWeekStart, prevWeek, nextWeek, goToToday, addEvent, updateEvent, removeEvent, updateSummary } = useSchedule();
   const { weather, loading: weatherLoading } = useWeather();
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -368,6 +373,33 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
         boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
         border: '1px solid rgba(255,255,255,0.1)',
       }}>
+        {/* Coordinate icon - placeholder */}
+        <EnvironmentOutlined style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginRight: 4 }} />
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+        {/* User info */}
+        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <UserOutlined style={{ fontSize: 10, marginRight: 4 }} />
+          {user?.display_name || user?.username || '用户'}
+        </span>
+        {/* Logout */}
+        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={onLogout} title="退出">
+          <LogoutOutlined style={{ fontSize: 12 }} />
+        </Button>
+        {/* Notification */}
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <BellOutlined style={{ color: notificationCount > 0 ? '#ff4d4f' : 'rgba(255,255,255,0.7)', fontSize: 12 }} />
+          {notificationCount > 0 && (
+            <span style={{ position: 'absolute', top: -6, right: -6, background: '#ff4d4f', color: '#fff', fontSize: 9, minWidth: 14, height: 14, borderRadius: 7, textAlign: 'center', lineHeight: '14px', fontWeight: 600 }}>
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </span>
+          )}
+        </div>
+        {/* Search */}
+        <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={onSearch} title="搜索">
+          <SearchOutlined style={{ fontSize: 12 }} />
+        </Button>
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+        {/* Navigation */}
         <Button type="text" size="small" style={{ color: '#fff', width: 28, minWidth: 28, padding: 0, height: 24 }} onClick={prevWeek}>
           <LeftOutlined style={{ fontSize: 10 }} />
         </Button>
@@ -378,6 +410,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false }: WeekCalendar
           <RightOutlined style={{ fontSize: 10 }} />
         </Button>
         <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+        {/* Export */}
         <Button type="text" size="small" style={{ color: '#fff', width: 24, minWidth: 24, padding: 0, height: 24 }} onClick={handleExportImage} loading={exporting} title="导出图片">
           <DownloadOutlined style={{ fontSize: 12 }} />
         </Button>
