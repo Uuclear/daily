@@ -23,10 +23,15 @@ export function useSchedule() {
     setLoading(true);
     try {
       const data = await api.getWeekSchedule(date);
-      setSchedule(data);
+      setSchedule({
+        dates: Array.isArray(data?.dates) ? data.dates : [],
+        events: data?.events || {},
+        summaries: data?.summaries || {},
+      });
       if (date) setCurrentWeekStart(date);
       setError(null);
     } catch (e: any) {
+      setSchedule({ dates: [], events: {}, summaries: {} }); // 确保出错时为空结构
       setError(e.message);
     } finally {
       setLoading(false);

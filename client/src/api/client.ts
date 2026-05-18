@@ -3,7 +3,7 @@ import type { Task, ScheduleEvent, Team, WeatherData, WeekSchedule } from '../ty
 
 const api = axios.create({
   baseURL: '/api',
-  validateStatus: (status) => status < 500,
+  validateStatus: (status) => status < 400, // 400+ 视为错误
 });
 
 // --- Auth interceptor ---

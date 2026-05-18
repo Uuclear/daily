@@ -11,9 +11,10 @@ export function useTasks() {
     setLoading(true);
     try {
       const data = await api.getTasks(status);
-      setTasks(data);
+      setTasks(Array.isArray(data) ? data : []);
       setError(null);
     } catch (e: any) {
+      setTasks([]); // 确保出错时 tasks 为空数组
       setError(e.message);
     } finally {
       setLoading(false);

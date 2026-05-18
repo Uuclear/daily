@@ -11,9 +11,9 @@ export function useWeather(city = '上海') {
       setLoading(true);
       try {
         const data = await api.getWeather(city, 7);
-        setWeather(data);
+        setWeather(Array.isArray(data) ? data : []);
       } catch {
-        setWeather([]);
+        setWeather([]); // 确保出错时为空数组
       } finally {
         setLoading(false);
       }
