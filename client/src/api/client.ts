@@ -3,8 +3,40 @@ import type { Task, ScheduleEvent, Team, WeatherData, WeekSchedule } from '../ty
 
 const api = axios.create({
   baseURL: '/api',
-  validateStatus: (status) => status < 500, // treat 4xx as failures too
+  validateStatus: (status) => status < 500,
 });
+
+// --- Auth interceptor ---
+
+function getAuthToken(): string | null {
+  return localStorage.getItem('token');
+}
+
+// Request interceptor: inject Bearer token into every outgoing request
+api.interceptors.request.use(
+  (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+// Response interceptor: handle 401 by clearing stale token
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      // Don't redirect here — let the caller or an error boundary handle it
+    }
+    return Promise.reject(error);
+  },
+);
+
+// --- API functions ---
 
 export const getTasks = async (status?: string): Promise<Task[]> => {
   const params = status ? { status } : {};
