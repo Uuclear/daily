@@ -1,17 +1,21 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { Button } from 'antd';
-import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, LogoutOutlined } from '@ant-design/icons';
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
 import { SearchModal } from '../../SearchModal';
 import { NotificationPanel } from '../../NotificationPanel';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useAuth } from '../../auth/AuthContext';
 import { message } from 'antd';
 import type { Task, ScheduleEvent } from '../../types/models';
 
 export function Dashboard() {
   const { isMobile } = useResponsive();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [taskPoolCollapsed, setTaskPoolCollapsed] = useState(false);
   const [taskPoolCreate, setTaskPoolCreate] = useState(false);
   const [taskPoolRefresh, setTaskPoolRefresh] = useState(false);
@@ -29,6 +33,11 @@ export function Dashboard() {
     // WeekCalendar can be navigated via props or context in the future
     // For now, show a message with the event info
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -62,6 +71,10 @@ export function Dashboard() {
             {taskPoolCollapsed ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <UpOutlined style={{ fontSize: 10, color: '#999' }} />}
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#666', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.display_name || user?.username}
+            </span>
+            <Button size="small" icon={<LogoutOutlined />} onClick={handleLogout} />
             <NotificationPanel />
             <Button size="small" icon={<SearchOutlined />} onClick={() => setSearchOpen(true)} />
             <Button size="small" icon={<ReloadOutlined />} onClick={() => setTaskPoolRefresh(true)} />
@@ -107,6 +120,12 @@ export function Dashboard() {
           gap: 8,
           alignItems: 'center',
         }}>
+          <span style={{ fontSize: 13, color: '#666', marginRight: 4 }}>
+            {user?.display_name || user?.username}
+          </span>
+          <Button size="small" icon={<LogoutOutlined />} onClick={handleLogout}>
+            退出
+          </Button>
           <NotificationPanel />
           <Button icon={<SearchOutlined />} onClick={() => setSearchOpen(true)}>
             搜索

@@ -12,9 +12,10 @@
     "@dnd-kit/sortable": "^10.0.0",
     "antd": "^5.22.0",
     "axios": "^1.7.0",
+    "html2canvas": "^1.4.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "react-router-dom": "^7.1.0",
+    "react-router-dom": "^7.15.1",
     "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {
