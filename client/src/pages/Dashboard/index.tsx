@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { Button } from 'antd';
-import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DownOutlined, UpOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
+import { SearchModal } from '../../SearchModal';
 import { useResponsive } from '../../hooks/useResponsive';
 import { message } from 'antd';
+import type { Task, ScheduleEvent } from '../../types/models';
 
 export function Dashboard() {
   const { isMobile } = useResponsive();
   const [taskPoolCollapsed, setTaskPoolCollapsed] = useState(false);
   const [taskPoolCreate, setTaskPoolCreate] = useState(false);
   const [taskPoolRefresh, setTaskPoolRefresh] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+
+  const handleTaskSelect = useCallback((task: Task) => {
+    setHighlightedTaskId(task.id);
+    setTaskPoolCollapsed(false);
+    message.info(`已选中任务: ${task.project_name}`);
+  }, []);
+
+  const handleEventSelect = useCallback((event: ScheduleEvent) => {
+    message.info(`已选中日程: ${event.title} (${event.date})`);
+    // WeekCalendar can be navigated via props or context in the future
+    // For now, show a message with the event info
+  }, []);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -45,6 +61,7 @@ export function Dashboard() {
             {taskPoolCollapsed ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <UpOutlined style={{ fontSize: 10, color: '#999' }} />}
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
+            <Button size="small" icon={<SearchOutlined />} onClick={() => setSearchOpen(true)} />
             <Button size="small" icon={<ReloadOutlined />} onClick={() => setTaskPoolRefresh(true)} />
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setTaskPoolCreate(true)}>
               新建任务
@@ -63,14 +80,32 @@ export function Dashboard() {
         <div style={{ flex: 1, overflow: 'hidden', background: '#fff' }}>
           <WeekCalendar visibleDays={5} isMobile />
         </div>
+        <SearchModal
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          onTaskSelect={handleTaskSelect}
+          onEventSelect={handleEventSelect}
+        />
       </div>
     );
   }
 
   // Desktop: horizontal split
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
+    <>
+      <DndContext onDragEnd={handleDragEnd}>
+        <div style={{ display: 'flex', height: '100vh', background: '#f5f5f5' }}>
+        {/* Top bar with search */}
+        <div style={{
+          position: 'absolute',
+          top: 8,
+          right: 16,
+          zIndex: 100,
+        }}>
+          <Button icon={<SearchOutlined />} onClick={() => setSearchOpen(true)}>
+            搜索
+          </Button>
+        </div>
         <div style={{
           width: '22%',
           borderRight: 'none',
@@ -86,6 +121,13 @@ export function Dashboard() {
           <WeekCalendar visibleDays={7} isMobile={false} />
         </div>
       </div>
-    </DndContext>
+      </DndContext>
+      <SearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onTaskSelect={handleTaskSelect}
+        onEventSelect={handleEventSelect}
+      />
+    </>
   );
 }

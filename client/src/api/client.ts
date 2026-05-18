@@ -75,3 +75,14 @@ export const addPerson = async (name: string): Promise<{ id: string; name: strin
   const { data } = await api.post('/persons', { name });
   return data;
 };
+
+export interface SearchResult {
+  id: string;
+  matchedField: string;
+  [key: string]: any;
+}
+
+export const search = async (keyword: string): Promise<{ tasks: SearchResult[]; events: SearchResult[] }> => {
+  const { data } = await api.get('/search', { params: { q: keyword } });
+  return data;
+};
