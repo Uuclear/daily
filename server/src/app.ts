@@ -7,6 +7,7 @@ import scheduleRouter from './routes/schedule';
 import teamsRouter from './routes/teams';
 import weatherRouter from './routes/weather';
 import personsRouter from './routes/persons';
+import searchRouter from './routes/search';
 import authRouter from './routes/auth';
 import { getDb } from './db/init';
 
@@ -25,6 +26,7 @@ app.use('/api/schedule', scheduleRouter);
 app.use('/api/teams', teamsRouter);
 app.use('/api/weather', weatherRouter);
 app.use('/api/persons', personsRouter);
+app.use('/api/search', searchRouter);
 
 // Serve production frontend static files
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
