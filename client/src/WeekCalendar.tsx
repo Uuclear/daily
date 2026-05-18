@@ -128,18 +128,18 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
   }, [jumpToDate, goToWeek, onJumpComplete]);
 
   // Filter to visible days (first N days of the week)
-  const visibleDates = schedule.dates.slice(0, visibleDays);
+  const visibleDates = (schedule?.dates || []).slice(0, visibleDays);
   const today = localDateString(new Date());
   const todayIndex = visibleDates.indexOf(today);
 
   const weatherMap: Record<string, any> = {};
-  weather.forEach(w => { weatherMap[w.date] = w; });
+  (weather || []).forEach(w => { weatherMap[w.date] = w; });
 
   const dayNames = isMobile ? dayNamesShort : dayNamesFull;
 
   const initSummaryItems = (date: string) => {
     if (!(date in summaryItems)) {
-      const summary = schedule.summaries[date];
+      const summary = schedule?.summaries?.[date];
       summaryItems[date] = summary?.content ? summary.content.split('\n').filter(Boolean) : [];
       setSummaryItems(prev => ({ ...prev, [date]: [...summaryItems[date]] }));
     }
@@ -176,7 +176,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
 
     // Check for conflicts
     const conflictCheck = await api.getWeekSchedule();
-    const eventsOnDate = conflictCheck.events[values.date ? values.date.format('YYYY-MM-DD') : ''] || [];
+    const eventsOnDate = (conflictCheck?.events || {})[values.date ? values.date.format('YYYY-MM-DD') : ''] || [];
     for (const ev of eventsOnDate) {
       const evEnd = ev.end_time || ev.start_time;
       if (startTime < evEnd && (endTime || startTime) > ev.start_time) {
@@ -243,7 +243,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     // Check for conflicts (exclude current event)
     const dateVal = values.date ? values.date.format('YYYY-MM-DD') : editingEvent.date;
     const conflictCheck = await api.getWeekSchedule();
-    const eventsOnDate = conflictCheck.events[dateVal] || [];
+    const eventsOnDate = (conflictCheck?.events || {})[dateVal] || [];
     for (const ev of eventsOnDate) {
       if (ev.id === editingEvent.id) continue;
       const evEnd = ev.end_time || ev.start_time;
@@ -392,7 +392,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
               {/* Day columns */}
               <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
                 {visibleDates.map((date, idx) => {
-                  const events = schedule.events[date] || [];
+                  const events = schedule?.events?.[date] || [];
                   const dayWeather = weatherMap[date];
                   const isRainy = dayWeather?.outdoorWarning;
                   const isToday = date === today;
