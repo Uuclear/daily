@@ -72,6 +72,22 @@ export function getDb(): Database.Database {
       try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} TEXT REFERENCES users(id) DEFAULT 'system'`); } catch { /* already exists */ }
     }
 
+    // Migration: add notification_settings table
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS notification_settings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        enabled INTEGER NOT NULL DEFAULT 1,
+        reminder_days INTEGER NOT NULL DEFAULT 1,
+        reminder_time TEXT NOT NULL DEFAULT '08:00',
+        notify_on_deadline INTEGER NOT NULL DEFAULT 1,
+        notify_on_schedule INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(user_id)
+      )`);
+    } catch { /* already exists */ }
+
     // Create default 'system' user for existing data
     try {
       db.exec(`INSERT INTO users (id, username, password_hash, display_name, role, created_at, updated_at)

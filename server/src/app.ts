@@ -8,6 +8,7 @@ import teamsRouter from './routes/teams';
 import weatherRouter from './routes/weather';
 import personsRouter from './routes/persons';
 import searchRouter from './routes/search';
+import notificationsRouter from './routes/notifications';
 import authRouter from './routes/auth';
 import { getDb } from './db/init';
 
@@ -27,6 +28,7 @@ app.use('/api/teams', teamsRouter);
 app.use('/api/weather', weatherRouter);
 app.use('/api/persons', personsRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Serve production frontend static files
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
