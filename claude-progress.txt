@@ -29,5 +29,11 @@ Next Steps:
 - [Optional] Add PDF export functionality
 - [Optional] Configure real 和风天气 API key via QWEATHER_API_KEY env var
 - [Optional] Add unit/integration tests
+- [DONE] Task 4.2: Frontend notification component with settings panel and notification bell
+  - NotificationPanel.tsx: bell icon with badge count, popover with upcoming tasks/events
+  - Settings modal: enable toggle, reminder days (1-7), time picker, deadline/schedule checkboxes
+  - Browser notification permission request
+  - Polls GET /api/notifications/upcoming every 60s
+  - Integrated into Dashboard header (both mobile and desktop)
 
 === End Session ===

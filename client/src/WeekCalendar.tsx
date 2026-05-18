@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import dayjs from 'dayjs';
 import { Button, Spin, Modal, Form, Input, Select, DatePicker, Switch, Space, message, TimePicker, Popconfirm } from 'antd';
-import { LeftOutlined, RightOutlined, PlusOutlined, DownloadOutlined, EnvironmentOutlined, LogoutOutlined, SearchOutlined, UserOutlined, BellOutlined } from '@ant-design/icons';
-import type { ScheduleEvent, Task } from './types/models';
+import { LeftOutlined, RightOutlined, PlusOutlined, DownloadOutlined } from '@ant-design/icons';
+import type { ScheduleEvent, Task, WeekSchedule } from './types/models';
 import { WeatherCard } from './WeatherCard';
 import { EventCard } from './EventCard';
-import { useSchedule } from './hooks/useSchedule';
 import { useWeather } from './hooks/useWeather';
 import * as api from './api/client';
 import { exportAsImage, exportAsPDF } from './utils/export';
@@ -20,15 +19,49 @@ function localDateString(d: Date): string {
 }
 
 interface WeekCalendarProps {
+  schedule: WeekSchedule;
+  loading?: boolean;
+  currentWeekStart?: string;
+  onPrevWeek?: () => void;
+  onNextWeek?: () => void;
+  onGoToToday?: () => void;
+  onGoToWeek?: (date: string) => void;
+  onAddEvent?: (event: Omit<ScheduleEvent, 'id'>) => Promise<ScheduleEvent>;
+  onUpdateEvent?: (id: string, updates: Partial<ScheduleEvent>) => Promise<ScheduleEvent>;
+  onRemoveEvent?: (id: string) => Promise<void>;
+  onUpdateSummary?: (date: string, content: string) => Promise<any>;
   visibleDays?: number;
   isMobile?: boolean;
-  readOnly?: boolean; // 只读模式（未登录时）
-  jumpToDate?: string | null; // 跳转到指定日期所在的周
-  onJumpComplete?: () => void; // 跳转完成回调
+  readOnly?: boolean;
+  jumpToDate?: string | null;
+  onJumpComplete?: () => void;
+  hideDesktopNav?: boolean;
 }
 
-export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = false, jumpToDate, onJumpComplete }: WeekCalendarProps) {
-  const { schedule, loading, currentWeekStart, prevWeek, nextWeek, goToToday, goToWeek, addEvent, updateEvent, removeEvent, updateSummary } = useSchedule();
+export interface WeekCalendarRef {
+  openCreateModal: (date?: string) => void;
+  handleExportImage: () => void;
+}
+
+export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(function WeekCalendar({
+  schedule,
+  loading = false,
+  currentWeekStart,
+  onPrevWeek,
+  onNextWeek,
+  onGoToToday,
+  onGoToWeek,
+  onAddEvent,
+  onUpdateEvent,
+  onRemoveEvent,
+  onUpdateSummary,
+  visibleDays = 7,
+  isMobile = false,
+  readOnly = false,
+  jumpToDate,
+  onJumpComplete,
+  hideDesktopNav = false,
+}, ref) {
   const { weather, loading: weatherLoading } = useWeather();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -40,46 +73,47 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
   const [tasks, setTasks] = useState<Task[]>([]);
   const [persons, setPersons] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
-  const [navPos, setNavPos] = useState<{ left: number; top: number }>({ left: window.innerWidth - 280, top: 8 });
   const calendarRef = useRef<HTMLDivElement>(null);
-  const navDragging = useRef(false);
-  const navOffset = useRef({ x: 0, y: 0 });
   const [exporting, setExporting] = useState(false);
 
-  const handleExportImage = async () => {
-    try {
-      setExporting(true);
-      const element = document.getElementById('calendar-export-target');
-      if (!element) {
-        message.error('导出失败：未找到日历元素');
-        return;
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    openCreateModal: (date?: string) => {
+      if (readOnly) return;
+      const targetDate = date || (schedule?.dates?.[0] || localDateString(new Date()));
+      const timeVal = dayjs().hour(8).minute(0).second(0).millisecond(0);
+      createForm.setFieldsValue({
+        date: dayjs(targetDate),
+        title: '',
+        start_time: timeVal,
+        end_time: null,
+        work_content: '',
+        is_milestone: false,
+        task_id: null,
+        assigned_team: null,
+        location: '',
+        notes: '',
+      });
+      setCreateModalOpen(true);
+    },
+    handleExportImage: async () => {
+      try {
+        setExporting(true);
+        const element = document.getElementById('calendar-export-target');
+        if (!element) {
+          message.error('导出失败：未找到日历元素');
+          return;
+        }
+        const weekLabel = dayjs(currentWeekStart || schedule?.dates?.[0]).format('YYYY-MM-DD');
+        await exportAsImage(element, `calendar-${weekLabel}`);
+        message.success('图片导出成功');
+      } catch (e) {
+        message.error('导出失败，请重试');
+      } finally {
+        setExporting(false);
       }
-      const weekLabel = dayjs(currentWeekStart).format('YYYY-MM-DD');
-      await exportAsImage(element, `calendar-${weekLabel}`);
-      message.success('图片导出成功');
-    } catch (e) {
-      message.error('导出失败，请重试');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPDF = async () => {
-    try {
-      setExporting(true);
-      const element = document.getElementById('calendar-export-target');
-      if (!element) {
-        message.error('导出失败：未找到日历元素');
-        return;
-      }
-      const weekLabel = dayjs(currentWeekStart).format('YYYY-MM-DD');
-      await exportAsPDF(element, `calendar-${weekLabel}`);
-    } catch (e) {
-      message.error('导出失败，请重试');
-    } finally {
-      setExporting(false);
-    }
-  };
+    },
+  }), [readOnly, schedule, currentWeekStart, createForm]);
 
   // Mobile dimensions
   const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
@@ -121,11 +155,11 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
 
   // Handle jumpToDate (from search result click)
   useEffect(() => {
-    if (jumpToDate && goToWeek) {
-      goToWeek(jumpToDate);
+    if (jumpToDate && onGoToWeek) {
+      onGoToWeek(jumpToDate);
       onJumpComplete?.();
     }
-  }, [jumpToDate, goToWeek, onJumpComplete]);
+  }, [jumpToDate, onGoToWeek, onJumpComplete]);
 
   // Filter to visible days (first N days of the week)
   const visibleDates = (schedule?.dates || []).slice(0, visibleDays);
@@ -186,7 +220,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     }
 
     try {
-      await addEvent({
+      await onAddEvent?.({
         task_id: values.task_id || null,
         date: values.date ? values.date.format('YYYY-MM-DD') : '',
         start_time: startTime,
@@ -254,7 +288,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     }
 
     try {
-      await updateEvent(editingEvent.id, {
+      await onUpdateEvent?.(editingEvent.id, {
         date: dateVal,
         start_time: startTime,
         end_time: endTime || startTime,
@@ -285,7 +319,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     const updated = [...(summaryItems[date] || []), text];
     setSummaryItems(prev => ({ ...prev, [date]: updated }));
     setNewSummaryItem(prev => ({ ...prev, [date]: '' }));
-    updateSummary(date, updated.join('\n'));
+    onUpdateSummary?.(date, updated.join('\n'));
   };
 
   const handleRemoveSummaryItem = (date: string, index: number) => {
@@ -293,7 +327,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     const updated = [...(summaryItems[date] || [])];
     updated.splice(index, 1);
     setSummaryItems(prev => ({ ...prev, [date]: updated }));
-    updateSummary(date, updated.join('\n'));
+    onUpdateSummary?.(date, updated.join('\n'));
   };
 
   const handlePersonSelect = (value: string) => {
@@ -302,37 +336,10 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
     }
   };
 
-  // Nav dragging (desktop only)
-  const handleNavMouseDown = (e: React.MouseEvent) => {
-    navDragging.current = true;
-    navOffset.current = { x: e.clientX, y: e.clientY };
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  useEffect(() => {
-    if (isMobile) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!navDragging.current) return;
-      const dx = e.clientX - navOffset.current.x;
-      const dy = e.clientY - navOffset.current.y;
-      setNavPos(prev => {
-        const newLeft = Math.max(0, Math.min(window.innerWidth - 200, prev.left + dx));
-        const newTop = Math.max(0, Math.min(window.innerHeight - 50, prev.top + dy));
-        return { left: newLeft, top: newTop };
-      });
-      navOffset.current = { x: e.clientX, y: e.clientY };
-    };
-    const handleMouseUp = () => { navDragging.current = false; };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-  }, [isMobile]);
-
   const totalDays = visibleDates.length;
 
-  // Navigation bar
-  const navBar = isMobile ? (
+  // Navigation bar - only for mobile or when not hidden
+  const navBar = hideDesktopNav ? null : isMobile ? (
     <div style={{
       background: '#fff',
       borderBottom: '1px solid #e8e8e8',
@@ -343,25 +350,25 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
       gap: 4,
       flexShrink: 0,
     }}>
-      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={prevWeek}>
+      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={onPrevWeek}>
         <LeftOutlined style={{ fontSize: 10 }} />
       </Button>
-      <Button size="small" type="primary" style={{ width: 56, minWidth: 56, padding: 0, height: 28, borderRadius: 8, fontWeight: 500, background: '#1890ff', border: 'none' }} onClick={goToToday}>
+      <Button size="small" type="primary" style={{ width: 56, minWidth: 56, padding: 0, height: 28, borderRadius: 8, fontWeight: 500, background: '#1890ff', border: 'none' }} onClick={onGoToToday}>
         今日
       </Button>
-      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={nextWeek}>
+      <Button size="small" style={{ background: '#f5f5f5', border: '1px solid #d9d9d9', width: 36, minWidth: 36, padding: 0, height: 28, borderRadius: 8 }} onClick={onNextWeek}>
         <RightOutlined style={{ fontSize: 10 }} />
       </Button>
       <div style={{ flex: 1 }} />
-      <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} onClick={handleExportImage} loading={exporting} />
+      <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} loading={exporting} disabled />
       {!readOnly && (
-        <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>
+        <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => openCreateModal(todayIndex >= 0 ? visibleDates[todayIndex] : visibleDates[0])}>
           添加
         </Button>
       )}
     </div>
   ) : (
-    // Desktop nav bar - week navigation only (user buttons in Dashboard)
+    // Desktop nav bar (when hideDesktopNav is false)
     <div style={{
       background: '#fff',
       borderBottom: '1px solid #e8e8e8',
@@ -372,13 +379,13 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
       gap: 8,
       flexShrink: 0,
     }}>
-      <Button size="small" icon={<LeftOutlined />} onClick={prevWeek}>上周</Button>
-      <Button size="small" type="primary" onClick={goToToday}>今日</Button>
-      <Button size="small" icon={<RightOutlined />} onClick={nextWeek}>下周</Button>
+      <Button size="small" icon={<LeftOutlined />} onClick={onPrevWeek}>上周</Button>
+      <Button size="small" type="primary" onClick={onGoToToday}>今日</Button>
+      <Button size="small" icon={<RightOutlined />} onClick={onNextWeek}>下周</Button>
       <div style={{ flex: 1 }} />
-      <Button size="small" icon={<DownloadOutlined />} onClick={handleExportImage} loading={exporting}>导出</Button>
+      <Button size="small" icon={<DownloadOutlined />} loading={exporting} disabled>导出</Button>
       {!readOnly && (
-        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => { if (todayIndex >= 0) openCreateModal(visibleDates[todayIndex]); else openCreateModal(visibleDates[0]); }}>添加日程</Button>
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => openCreateModal(todayIndex >= 0 ? visibleDates[todayIndex] : visibleDates[0])}>添加日程</Button>
       )}
     </div>
   );
@@ -429,7 +436,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
                       isLastDay={idx === totalDays - 1}
                       totalHours={24}
                       pxPerHour={PX_PER_HOUR}
-                      onDelete={removeEvent}
+                      onDelete={(id) => { onRemoveEvent?.(id); }}
                       onEdit={openEditModal}
                       onDoubleClick={(timeStr) => openCreateModal(date, timeStr)}
                       isMobile={isMobile}
@@ -570,7 +577,7 @@ export function WeekCalendar({ visibleDays = 7, isMobile = false, readOnly = fal
       </Modal>
     </div>
   );
-}
+});
 
 /** Header row */
 function HeaderRow({ dates, today, weatherMap, timeAxisWidth, dayNames, isMobile }: {

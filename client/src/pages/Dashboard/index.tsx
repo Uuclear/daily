@@ -13,6 +13,9 @@ import {
   BellOutlined,
   EnvironmentOutlined,
   SettingOutlined,
+  LeftOutlined,
+  RightOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { TaskPool } from '../../TaskPool';
 import { WeekCalendar } from '../../WeekCalendar';
@@ -20,6 +23,7 @@ import { SearchModal } from '../../SearchModal';
 import { LoginModal } from '../../LoginModal';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useAuth } from '../../auth/AuthContext';
+import { useSchedule } from '../../hooks/useSchedule';
 import {
   getNotificationSettings,
   getUpcomingNotifications,
@@ -34,6 +38,21 @@ export function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isLoggedIn = !!user;
+
+  // Schedule state controlled by Dashboard
+  const {
+    schedule,
+    loading: scheduleLoading,
+    currentWeekStart,
+    prevWeek,
+    nextWeek,
+    goToToday,
+    goToWeek,
+    addEvent,
+    updateEvent,
+    removeEvent,
+    updateSummary,
+  } = useSchedule();
 
   const [taskPoolCollapsed, setTaskPoolCollapsed] = useState(false);
   const [taskPoolCreate, setTaskPoolCreate] = useState(false);
@@ -52,12 +71,18 @@ export function Dashboard() {
     notify_on_deadline: true,
     notify_on_schedule: true,
   });
-  const [navPos, setNavPos] = useState({ left: window.innerWidth - 350, top: 8 });
+  const [navPos, setNavPos] = useState({ left: window.innerWidth - 500, top: 8 });
   const navDragging = useRef(false);
   const navOffset = useRef({ x: 0, y: 0 });
 
   // Week jump target (for search result click)
   const [jumpToDate, setJumpToDate] = useState<string | null>(null);
+
+  // Ref to WeekCalendar for export and create modal
+  const weekCalendarRef = useRef<{
+    openCreateModal: (date?: string) => void;
+    handleExportImage: () => void;
+  } | null>(null);
 
   // Fetch notifications if logged in
   useEffect(() => {
@@ -130,6 +155,14 @@ export function Dashboard() {
       message.success('Task dropped on ' + date);
     }
   };
+
+  // Get today's date for create modal default
+  const todayLocal = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const visibleDates = (schedule?.dates || []).slice(0, isMobile ? 5 : 7);
+  const todayIndex = visibleDates.indexOf(todayLocal());
 
   // Desktop floating nav bar
   const desktopNavBar = (
@@ -241,6 +274,33 @@ export function Dashboard() {
 
         {/* Divider */}
         <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)' }} />
+
+        {/* Week navigation */}
+        <Button type="text" size="small" style={{ color: '#fff', padding: '0 4px', height: 24 }} onClick={prevWeek}>
+          <LeftOutlined style={{ fontSize: 12 }} />
+        </Button>
+        <Button type="text" size="small" style={{ color: '#1890ff', padding: '0 6px', height: 24, fontWeight: 500 }} onClick={goToToday}>
+          今日
+        </Button>
+        <Button type="text" size="small" style={{ color: '#fff', padding: '0 4px', height: 24 }} onClick={nextWeek}>
+          <RightOutlined style={{ fontSize: 12 }} />
+        </Button>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)' }} />
+
+        {/* Export */}
+        <Button type="text" size="small" style={{ color: '#fff', padding: '0 4px', height: 24 }} onClick={() => weekCalendarRef.current?.handleExportImage()}>
+          <DownloadOutlined style={{ fontSize: 12 }} />
+        </Button>
+
+        {/* Add schedule */}
+        {!isLoggedIn ? null : (
+          <Button type="text" size="small" style={{ color: '#52c41a', padding: '0 6px', height: 24 }} onClick={() => weekCalendarRef.current?.openCreateModal(todayIndex >= 0 ? visibleDates[todayIndex] : visibleDates[0])}>
+            <PlusOutlined style={{ fontSize: 12, marginRight: 2 }} />
+            添加
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -316,11 +376,24 @@ export function Dashboard() {
           {/* WeekCalendar */}
           <div style={{ width: isMobile ? '100%' : '78%', height: isMobile ? 'auto' : '100%', flex: isMobile ? 1 : undefined, overflow: 'hidden', background: '#fff' }}>
             <WeekCalendar
+              ref={weekCalendarRef}
+              schedule={schedule}
+              loading={scheduleLoading}
+              currentWeekStart={currentWeekStart}
+              onPrevWeek={prevWeek}
+              onNextWeek={nextWeek}
+              onGoToToday={goToToday}
+              onGoToWeek={goToWeek}
+              onAddEvent={addEvent}
+              onUpdateEvent={updateEvent}
+              onRemoveEvent={removeEvent}
+              onUpdateSummary={updateSummary}
               visibleDays={isMobile ? 5 : 7}
               isMobile={isMobile}
               readOnly={!isLoggedIn}
               jumpToDate={jumpToDate}
               onJumpComplete={() => setJumpToDate(null)}
+              hideDesktopNav={!isMobile}
             />
           </div>
         </div>
