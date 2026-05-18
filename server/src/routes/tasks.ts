@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 
 const router = Router();
@@ -17,11 +17,10 @@ function generateColor(seed: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-router.use(authenticate);
-
-router.get('/', (_req: Request, res: Response) => {
+// GET routes - 公开访问（optional auth）
+router.get('/', optionalAuth, (_req: Request, res: Response) => {
   const db = getDb();
-  const userId = _req.userId;
+  const userId = _req.userId || 'system'; // 未登录时使用 system 用户
   const status = _req.query.status as string | undefined;
   const stmt = status
     ? db.prepare('SELECT * FROM tasks WHERE status = ? AND (user_id = ? OR user_id = \'system\') ORDER BY created_at DESC')
@@ -30,14 +29,16 @@ router.get('/', (_req: Request, res: Response) => {
   res.json(tasks);
 });
 
-router.get('/:id', (_req: Request, res: Response) => {
+router.get('/:id', optionalAuth, (_req: Request, res: Response) => {
   const db = getDb();
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND (user_id = ? OR user_id = \'system\')').get(_req.params.id, _req.userId);
+  const userId = _req.userId || 'system';
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND (user_id = ? OR user_id = \'system\')').get(_req.params.id, userId);
   if (!task) return res.status(404).json({ error: 'NotFound', message: '任务不存在' });
   res.json(task);
 });
 
-router.post('/', validate({
+// POST/PUT/DELETE routes - 需要登录
+router.post('/', authenticate, validate({
   body: {
     project_name: { required: true },
     location: { required: true },
@@ -56,7 +57,7 @@ router.post('/', validate({
   res.status(201).json(task);
 });
 
-router.put('/:id', (_req: Request, res: Response) => {
+router.put('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color } = _req.body;
   const now = new Date().toISOString();
@@ -68,7 +69,7 @@ router.put('/:id', (_req: Request, res: Response) => {
   res.json(task);
 });
 
-router.put('/:id/status', (_req: Request, res: Response) => {
+router.put('/:id/status', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { status } = _req.body;
   const validStatuses = ['entrusted', 'in_progress', 'reporting', 'completed'];
@@ -82,7 +83,7 @@ router.put('/:id/status', (_req: Request, res: Response) => {
   res.json(task);
 });
 
-router.delete('/:id', (_req: Request, res: Response) => {
+router.delete('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const task = db.prepare('SELECT id FROM tasks WHERE id = ? AND (user_id = ? OR user_id = \'system\')').get(_req.params.id, _req.userId);
   if (!task) return res.status(404).json({ error: 'NotFound', message: '任务不存在' });

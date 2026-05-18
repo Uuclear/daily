@@ -45,6 +45,41 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 }
 
+// Optional auth - 如果有token就验证，没有也继续（用于公开查看）
+export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    // No token - continue without user info
+    next();
+    return;
+  }
+
+  if (!authHeader.startsWith('Bearer ')) {
+    // Invalid format - continue without user info
+    next();
+    return;
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      sub: string;
+      role: string;
+      username: string;
+    };
+
+    req.userId = decoded.sub;
+    req.userRole = decoded.role;
+
+    next();
+  } catch {
+    // Token invalid - continue without user info
+    next();
+  }
+}
+
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.userRole !== 'admin') {
     res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });

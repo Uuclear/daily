@@ -1,10 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
-import { authenticate } from '../middleware/auth';
+import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
-
-router.use(authenticate);
 
 interface WeatherResult {
   date: string;
@@ -81,8 +79,8 @@ function todayLocal(): string {
   return `${shanghai.getFullYear()}-${String(shanghai.getMonth() + 1).padStart(2, '0')}-${String(shanghai.getDate()).padStart(2, '0')}`;
 }
 
-router.get('/', async (_req: Request, res: Response) => {
-  const userId = _req.userId;
+router.get('/', optionalAuth, async (_req: Request, res: Response) => {
+  const userId = _req.userId || 'system';
   const { city = '上海', days = '7' } = _req.query;
   const cityName = city as string;
   const numDays = parseInt(days as string, 10);

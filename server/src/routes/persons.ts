@@ -1,18 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
-router.use(authenticate);
-
-router.get('/', (_req: Request, res: Response) => {
+// GET - 公开访问
+router.get('/', optionalAuth, (_req: Request, res: Response) => {
   const db = getDb();
-  const persons = db.prepare('SELECT * FROM persons WHERE (user_id = ? OR user_id = \'system\') ORDER BY name').all(_req.userId);
+  const userId = _req.userId || 'system';
+  const persons = db.prepare('SELECT * FROM persons WHERE (user_id = ? OR user_id = \'system\') ORDER BY name').all(userId);
   res.json(persons);
 });
 
-router.post('/', (_req: Request, res: Response) => {
+// POST - 需要登录
+router.post('/', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { name } = _req.body;
   if (!name) return res.status(400).json({ error: 'BadRequest', message: '名称不能为空' });

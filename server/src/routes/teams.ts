@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
-router.use(authenticate);
-
-router.get('/', (_req: Request, res: Response) => {
+// GET - 公开访问
+router.get('/', optionalAuth, (_req: Request, res: Response) => {
   const db = getDb();
-  const teams = db.prepare('SELECT * FROM teams WHERE (user_id = ? OR user_id = \'system\') ORDER BY name').all(_req.userId);
+  const userId = _req.userId || 'system';
+  const teams = db.prepare('SELECT * FROM teams WHERE (user_id = ? OR user_id = \'system\') ORDER BY name').all(userId);
   // Parse members JSON array
   teams.forEach((team: any) => {
     try { team.members = JSON.parse(team.members); } catch { team.members = []; }
@@ -16,7 +16,8 @@ router.get('/', (_req: Request, res: Response) => {
   res.json(teams);
 });
 
-router.post('/', (_req: Request, res: Response) => {
+// POST/PUT/DELETE - 需要登录
+router.post('/', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { name, color, members } = _req.body;
   const id = `team-${Date.now()}`;
@@ -26,7 +27,7 @@ router.post('/', (_req: Request, res: Response) => {
   res.status(201).json({ id, name, color: color || '#1890ff', members: members || [] });
 });
 
-router.put('/:id', (_req: Request, res: Response) => {
+router.put('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { name, color, members } = _req.body;
   const membersJson = members ? JSON.stringify(members) : undefined;
@@ -39,7 +40,7 @@ router.put('/:id', (_req: Request, res: Response) => {
   res.json(team);
 });
 
-router.delete('/:id', (_req: Request, res: Response) => {
+router.delete('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const result = db.prepare('DELETE FROM teams WHERE id = ? AND (user_id = ? OR user_id = \'system\')').run(_req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: 'NotFound', message: 'Team not found' });

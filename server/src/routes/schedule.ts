@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 
 const router = Router();
-
-router.use(authenticate);
 
 function getWeekDates(dateStr?: string): string[] {
   const date = dateStr ? new Date(dateStr) : new Date();
@@ -22,9 +20,10 @@ function getWeekDates(dateStr?: string): string[] {
   return dates;
 }
 
-router.get('/', (_req: Request, res: Response) => {
+// GET routes - 公开访问
+router.get('/', optionalAuth, (_req: Request, res: Response) => {
   const db = getDb();
-  const userId = _req.userId;
+  const userId = _req.userId || 'system';
   const { week, date } = _req.query as { week?: string; date?: string };
   const dates = getWeekDates(date || week);
 
@@ -45,7 +44,8 @@ router.get('/', (_req: Request, res: Response) => {
   res.json({ dates, events, summaries });
 });
 
-router.post('/', validate({
+// POST/PUT/DELETE routes - 需要登录
+router.post('/', authenticate, validate({
   body: {
     date: { required: true },
     start_time: { required: true, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ },
@@ -93,7 +93,7 @@ router.post('/', validate({
   res.status(201).json(event);
 });
 
-router.put('/:id', (_req: Request, res: Response) => {
+router.put('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes } = _req.body;
 
@@ -137,7 +137,7 @@ router.put('/:id', (_req: Request, res: Response) => {
   res.json(event);
 });
 
-router.delete('/:id', (_req: Request, res: Response) => {
+router.delete('/:id', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const result = db.prepare('DELETE FROM schedule_events WHERE id = ? AND (user_id = ? OR user_id = \'system\')').run(_req.params.id, _req.userId);
   if (result.changes === 0) return res.status(404).json({ error: 'NotFound', message: '日程不存在' });
@@ -145,7 +145,7 @@ router.delete('/:id', (_req: Request, res: Response) => {
 });
 
 // Check time conflict without creating
-router.post('/check-conflict', (_req: Request, res: Response) => {
+router.post('/check-conflict', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const { date, start_time, end_time, exclude_id } = _req.body;
 
@@ -170,8 +170,8 @@ router.post('/check-conflict', (_req: Request, res: Response) => {
   res.json({ conflict: false });
 });
 
-// Daily summaries
-router.post('/summary', (_req: Request, res: Response) => {
+// Daily summaries - 需要登录
+router.post('/summary', authenticate, (_req: Request, res: Response) => {
   const db = getDb();
   const userId = _req.userId;
   const { date, content } = _req.body;
