@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -12,10 +13,15 @@ const SALT_ROUNDS = 12;
 const router = Router();
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validate({
+  body: {
+    username: { required: true, minLength: 3, maxLength: 30, pattern: /^[a-zA-Z0-9]+$/ },
+    password: { required: true, minLength: 6 },
+  }
+}), async (req: Request, res: Response) => {
   const { username, password, display_name } = req.body;
 
-  // Validation
+  // Validation (existing manual checks preserved)
   if (!username || !password) {
     return res.status(400).json({ error: 'BadRequest', message: 'Username and password are required' });
   }
@@ -68,7 +74,12 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', validate({
+  body: {
+    username: { required: true },
+    password: { required: true },
+  }
+}), async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
   if (!username || !password) {

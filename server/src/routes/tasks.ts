@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
@@ -36,7 +37,12 @@ router.get('/:id', (_req: Request, res: Response) => {
   res.json(task);
 });
 
-router.post('/', (_req: Request, res: Response) => {
+router.post('/', validate({
+  body: {
+    project_name: { required: true },
+    location: { required: true },
+  }
+}), (_req: Request, res: Response) => {
   const db = getDb();
   const { project_name, location, assigned_team, status, progress, planned_start_date, deadline, notes, color } = _req.body;
   const now = new Date().toISOString();

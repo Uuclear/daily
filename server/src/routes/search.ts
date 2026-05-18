@@ -1,12 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/', (req: Request, res: Response) => {
+router.get('/', validate({
+  query: {
+    q: { required: true },
+  }
+}), (req: Request, res: Response) => {
   const { q } = req.query;
   const keyword = String(q || '').trim();
 

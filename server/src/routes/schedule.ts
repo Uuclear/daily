@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/init';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
@@ -44,7 +45,13 @@ router.get('/', (_req: Request, res: Response) => {
   res.json({ dates, events, summaries });
 });
 
-router.post('/', (_req: Request, res: Response) => {
+router.post('/', validate({
+  body: {
+    date: { required: true },
+    start_time: { required: true, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ },
+    title: { required: true },
+  }
+}), (_req: Request, res: Response) => {
   const db = getDb();
   const userId = _req.userId;
   const { task_id, date, start_time, end_time, title, work_content, is_milestone, assigned_team, location, notes } = _req.body;
