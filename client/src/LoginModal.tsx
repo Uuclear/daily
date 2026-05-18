@@ -20,7 +20,12 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       message.success('登录成功');
       onClose();
     } catch (err: any) {
-      message.error(err.message || '登录失败，请检查用户名和密码');
+      const backendMsg = err?.response?.data?.message || err?.response?.data?.error;
+      if (backendMsg === 'Invalid credentials') {
+        message.error('用户名或密码错误，请检查后重试');
+      } else {
+        message.error(backendMsg || '登录失败，请检查用户名和密码');
+      }
     } finally {
       setLoading(false);
     }
@@ -33,7 +38,12 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       message.success('注册成功，已自动登录');
       onClose();
     } catch (err: any) {
-      message.error(err.message || '注册失败，用户名可能已存在');
+      const backendMsg = err?.response?.data?.message || err?.response?.data?.error;
+      if (backendMsg === 'Conflict' || backendMsg === 'Username already exists') {
+        message.error('用户名已存在，请换一个');
+      } else {
+        message.error(backendMsg || '注册失败，请重试');
+      }
     } finally {
       setLoading(false);
     }

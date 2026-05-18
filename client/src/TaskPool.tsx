@@ -47,8 +47,13 @@ export function TaskPool({ compact, readOnly = false, showCreate, showRefresh, o
   }, [showRefresh]);
 
   const handleStatusChange = async (id: string, status: Task['status']) => {
+    const task = tasks.find(t => t.id === id);
     if (status === 'completed') {
+      // Set deadline to today when completing
       await api.updateTask(id, { status, deadline: today });
+    } else if (task?.status === 'completed') {
+      // Clear deadline when reverting from completed to any other status
+      await api.updateTask(id, { status, deadline: null });
     } else {
       await updateTaskStatus(id, status);
     }

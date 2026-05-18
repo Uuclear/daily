@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { Button, message, Badge, Dropdown, Space } from 'antd';
+import { Button, message, Badge, Dropdown, Space, Modal } from 'antd';
 import {
   DownOutlined,
   UpOutlined,
@@ -27,6 +27,7 @@ import { useSchedule } from '../../hooks/useSchedule';
 import {
   getNotificationSettings,
   getUpcomingNotifications,
+  updateNotificationSettings,
   type NotificationSettings,
   type UpcomingNotification,
 } from '../../api/client';
@@ -234,21 +235,40 @@ export function Dashboard() {
                 overflow: 'auto',
                 padding: 12,
               }}>
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>通知中心</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600 }}>通知中心</span>
+                  {notificationCount > 0 && (
+                    <Button type="link" size="small" style={{ fontSize: 12 }} onClick={() => { setUpcoming({ tasks: [], events: [] }); setNotificationCount(0); }}>
+                      清除全部
+                    </Button>
+                  )}
+                </div>
                 {upcoming.tasks.length === 0 && upcoming.events.length === 0 ? (
                   <div style={{ color: '#999', padding: 8 }}>暂无即将到期的事项</div>
                 ) : (
                   <>
                     {upcoming.tasks.map(t => (
-                      <div key={t.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <span style={{ fontWeight: 500 }}>{t.project_name}</span>
-                        <span style={{ color: '#ff4d4f', marginLeft: 8 }}>{t.deadline}</span>
+                      <div key={t.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <span style={{ fontWeight: 500 }}>{t.project_name}</span>
+                          <span style={{ color: '#ff4d4f', marginLeft: 8 }}>{t.deadline}</span>
+                        </div>
+                        <Button type="text" size="small" style={{ color: '#ccc' }} onClick={() => {
+                          setUpcoming(prev => ({ ...prev, tasks: prev.tasks.filter(x => x.id !== t.id) }));
+                          setNotificationCount(prev => prev - 1);
+                        }}>×</Button>
                       </div>
                     ))}
                     {upcoming.events.map(e => (
-                      <div key={e.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <span style={{ fontWeight: 500 }}>{e.title}</span>
-                        <span style={{ color: '#666', marginLeft: 8 }}>{e.date}</span>
+                      <div key={e.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <span style={{ fontWeight: 500 }}>{e.title}</span>
+                          <span style={{ color: '#666', marginLeft: 8 }}>{e.date}</span>
+                        </div>
+                        <Button type="text" size="small" style={{ color: '#ccc' }} onClick={() => {
+                          setUpcoming(prev => ({ ...prev, events: prev.events.filter(x => x.id !== e.id) }));
+                          setNotificationCount(prev => prev - 1);
+                        }}>×</Button>
                       </div>
                     ))}
                   </>
@@ -410,51 +430,88 @@ export function Dashboard() {
       {/* Login Modal */}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
 
-      {/* Notification Settings Modal (mobile) */}
-      {isMobile && isLoggedIn && (
+      {/* Notification Settings Modal */}
+      {isLoggedIn && (
         <NotificationSettingsModal
           open={notificationSettingsOpen}
           onClose={() => setNotificationSettingsOpen(false)}
           settings={settings}
-          onSave={setSettings}
+          onSave={async (s) => {
+            setSettings(s);
+            try {
+              await updateNotificationSettings(s);
+            } catch {}
+          }}
+          isMobile={isMobile}
         />
       )}
     </>
   );
 }
 
-// Mobile notification settings modal
-function NotificationSettingsModal({ open, onClose, settings, onSave }: {
+// Notification settings modal (works on both mobile and desktop)
+function NotificationSettingsModal({ open, onClose, settings, onSave, isMobile }: {
   open: boolean;
   onClose: () => void;
   settings: NotificationSettings;
   onSave: (s: NotificationSettings) => void;
+  isMobile: boolean;
 }) {
   const [local, setLocal] = useState(settings);
   useEffect(() => { setLocal(settings); }, [settings, open]);
-  return (
-    <div style={{ display: open ? 'block' : 'none', position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)' }}>
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '12px 12px 0 0', padding: 16, maxHeight: '80vh', overflow: 'auto' }}>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>通知设置</div>
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>启用通知</span>
-            <input type="checkbox" checked={local.enabled} onChange={e => setLocal({ ...local, enabled: e.target.checked })} />
+
+  if (isMobile) {
+    return (
+      <div style={{ display: open ? 'block' : 'none', position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '12px 12px 0 0', padding: 16, maxHeight: '80vh', overflow: 'auto' }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>通知设置</div>
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>启用通知</span>
+              <input type="checkbox" checked={local.enabled} onChange={e => setLocal({ ...local, enabled: e.target.checked })} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>提前提醒天数</span>
+              <input type="number" min={1} max={7} value={local.reminder_days} onChange={e => setLocal({ ...local, reminder_days: parseInt(e.target.value) || 1 })} style={{ width: 50 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>提醒时间</span>
+              <input type="time" value={local.reminder_time} onChange={e => setLocal({ ...local, reminder_time: e.target.value })} style={{ width: 80 }} />
+            </div>
+          </Space>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+            <Button onClick={onClose} style={{ flex: 1 }}>取消</Button>
+            <Button type="primary" onClick={() => { onSave(local); onClose(); }} style={{ flex: 1 }}>保存</Button>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>提前提醒天数</span>
-            <input type="number" min={1} max={7} value={local.reminder_days} onChange={e => setLocal({ ...local, reminder_days: parseInt(e.target.value) || 1 })} style={{ width: 50 }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>提醒时间</span>
-            <input type="time" value={local.reminder_time} onChange={e => setLocal({ ...local, reminder_time: e.target.value })} style={{ width: 80 }} />
-          </div>
-        </Space>
-        <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-          <Button onClick={onClose} style={{ flex: 1 }}>取消</Button>
-          <Button type="primary" onClick={() => { onSave(local); onClose(); }} style={{ flex: 1 }}>保存</Button>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  // Desktop: use Modal
+  return (
+    <Modal
+      title="通知设置"
+      open={open}
+      onCancel={onClose}
+      onOk={() => { onSave(local); onClose(); }}
+      okText="保存"
+      cancelText="取消"
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>启用通知</span>
+          <input type="checkbox" checked={local.enabled} onChange={e => setLocal({ ...local, enabled: e.target.checked })} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>提前提醒天数</span>
+          <input type="number" min={1} max={7} value={local.reminder_days} onChange={e => setLocal({ ...local, reminder_days: parseInt(e.target.value) || 1 })} style={{ width: 50 }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>提醒时间</span>
+          <input type="time" value={local.reminder_time} onChange={e => setLocal({ ...local, reminder_time: e.target.value })} style={{ width: 80 }} />
+        </div>
+      </Space>
+    </Modal>
   );
 }

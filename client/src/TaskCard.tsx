@@ -83,9 +83,9 @@ export function TaskCardComponent({ task, onUpdateStatus, onDelete, onProgressCh
       {/* 状态标签 - 右上角 */}
       <div style={{
         position: 'absolute', top: 8, right: 8,
-        fontSize: 9, color: config.color, fontWeight: 700, letterSpacing: 1,
+        fontSize: 12, color: config.color, fontWeight: 700, letterSpacing: 1,
         background: config.color + '10',
-        borderRadius: 4, padding: '2px 8px',
+        borderRadius: 4, padding: '2px 10px',
       }}>
         {config.label}
       </div>

@@ -42,24 +42,26 @@ router.get('/', validate({
     likePattern, likePattern, likePattern, likePattern
   );
 
-  // Search schedule events
+  // Search schedule events - also search related task name via task_id
   const events = db.prepare(`
-    SELECT id, date, title, work_content, location, assigned_team, notes,
+    SELECT se.id, se.date, se.title, se.work_content, se.location, se.assigned_team, se.notes, se.task_id,
            CASE
-             WHEN title LIKE ? THEN 'title'
-             WHEN work_content LIKE ? THEN 'work_content'
-             WHEN location LIKE ? THEN 'location'
-             WHEN notes LIKE ? THEN 'notes'
-             WHEN assigned_team LIKE ? THEN 'assigned_team'
+             WHEN se.title LIKE ? THEN 'title'
+             WHEN se.work_content LIKE ? THEN 'work_content'
+             WHEN se.location LIKE ? THEN 'location'
+             WHEN se.notes LIKE ? THEN 'notes'
+             WHEN se.assigned_team LIKE ? THEN 'assigned_team'
+             WHEN t.project_name LIKE ? THEN '关联任务'
              ELSE 'unknown'
            END as matchedField
-    FROM schedule_events
-    WHERE (user_id = ? OR user_id = 'system')
-      AND (title LIKE ? OR work_content LIKE ? OR location LIKE ? OR notes LIKE ? OR assigned_team LIKE ?)
+    FROM schedule_events se
+    LEFT JOIN tasks t ON se.task_id = t.id
+    WHERE (se.user_id = ? OR se.user_id = 'system')
+      AND (se.title LIKE ? OR se.work_content LIKE ? OR se.location LIKE ? OR se.notes LIKE ? OR se.assigned_team LIKE ? OR t.project_name LIKE ?)
   `).all(
-    likePattern, likePattern, likePattern, likePattern, likePattern,
+    likePattern, likePattern, likePattern, likePattern, likePattern, likePattern,
     userId,
-    likePattern, likePattern, likePattern, likePattern, likePattern
+    likePattern, likePattern, likePattern, likePattern, likePattern, likePattern
   );
 
   res.json({ tasks, events });

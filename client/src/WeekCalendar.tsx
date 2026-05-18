@@ -76,6 +76,14 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
   const calendarRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
+  // Build task color lookup map - must be declared before useImperativeHandle
+  const taskColorMap: Record<string, string> = {};
+  (Array.isArray(tasks) ? tasks : []).forEach(t => { if (t.color) taskColorMap[t.id] = t.color; });
+
+  // Build weather map - must be declared before useImperativeHandle
+  const weatherMap: Record<string, any> = {};
+  (Array.isArray(weather) ? weather : []).forEach(w => { weatherMap[w.date] = w; });
+
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     openCreateModal: (date?: string) => {
@@ -99,13 +107,96 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
     handleExportImage: async () => {
       try {
         setExporting(true);
-        const element = document.getElementById('calendar-export-target');
-        if (!element) {
-          message.error('导出失败：未找到日历元素');
-          return;
+        // For export, always use full 7 days regardless of visibleDays prop
+        const allDates = (schedule?.dates || []);
+        const weekLabel = dayjs(currentWeekStart || allDates[0]).format('YYYY-MM-DD');
+
+        // Create a hidden export container with full 7 days
+        const exportContainer = document.createElement('div');
+        exportContainer.id = 'temp-export-container';
+        exportContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 1400px; background: #fff;';
+
+        // Build the export HTML with full 7-day calendar
+        const todayLocal = localDateString(new Date());
+        const dayNamesExport = dayNamesFull;
+        const PX_PER_HOUR_EXPORT = 50;
+        const TIME_AXIS_WIDTH_EXPORT = 48;
+
+        // Header row
+        let headerHtml = `<div style="display: flex; background: #fafbfc; border-bottom: 2px solid #e8e8e8;">`;
+        headerHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc;"></div>`;
+        for (let i = 0; i < 7; i++) {
+          const date = allDates[i] || '';
+          const d = new Date(date);
+          const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+          const isToday = date === todayLocal;
+          const w = weatherMap[date];
+          headerHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; text-align: center; padding: 6px 0;">
+            <div style="font-weight: 600; font-size: 14; color: ${isToday ? '#1890ff' : '#1a1a2e'};">
+              ${dayNamesExport[i]} <span style="color: #999; font-weight: 400; font-size: 12;">${dateStr}</span>
+              ${isToday ? '<span style="color: #ff4d4f; font-size: 11;"> 今天</span>' : ''}
+            </div>
+            ${w ? `<div style="font-size: 12; color: #888;">${w.icon} ${w.description} ${w.tempMin}°/${w.tempMax}°</div>` : ''}
+          </div>`;
         }
-        const weekLabel = dayjs(currentWeekStart || schedule?.dates?.[0]).format('YYYY-MM-DD');
-        await exportAsImage(element, `calendar-${weekLabel}`);
+        headerHtml += '</div>';
+
+        // Calendar grid
+        let gridHtml = `<div style="display: flex;">`;
+        gridHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8;">`;
+        for (let h = 0; h < 24; h++) {
+          gridHtml += `<div style="font-size: 8; color: #bbb; text-align: right; padding-right: 4; padding-top: 1; height: ${PX_PER_HOUR_EXPORT}px;">${String(h).padStart(2, '0')}</div>`;
+        }
+        gridHtml += '</div>';
+
+        for (let i = 0; i < 7; i++) {
+          const date = allDates[i] || '';
+          const events = schedule?.events?.[date] || [];
+          const w = weatherMap[date];
+          const isRainy = w?.outdoorWarning;
+          const isToday = date === todayLocal;
+
+          gridHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; position: relative; height: ${24 * PX_PER_HOUR_EXPORT}px; background: ${isRainy ? '#fff8f0' : isToday ? '#f8faff' : 'transparent'};">`;
+
+          // Hour lines
+          for (let h = 0; h < 24; h++) {
+            gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; left: 0; right: 0; border-top: 1px dashed #f0f0f0;"></div>`;
+          }
+
+          // Events
+          for (const ev of events) {
+            const [startH, startM] = ev.start_time.split(':').map(Number);
+            const [endH, endM] = ev.end_time.split(':').map(Number);
+            const startVal = startH + startM / 60;
+            const endVal = endH + endM / 60;
+            const topPx = startVal * PX_PER_HOUR_EXPORT;
+            const heightPx = Math.max(28, (endVal - startVal) * PX_PER_HOUR_EXPORT);
+            const taskColor = ev.task_id ? taskColorMap[ev.task_id] : undefined;
+            const bgColor = taskColor || '#e8f4fd';
+
+            gridHtml += `<div style="position: absolute; left: 4; right: 4; top: ${topPx}px; height: ${heightPx}px; background: ${bgColor}; border-radius: 6; padding: 4 8; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <div style="font-size: 11; font-weight: 600; color: #1a1a2e;">${ev.title}</div>
+              <div style="font-size: 9; color: #666;">${ev.start_time}-${ev.end_time}</div>
+              ${ev.location ? `<div style="font-size: 9; color: #888;">📍 ${ev.location}</div>` : ''}
+              ${ev.assigned_team ? `<div style="font-size: 9; color: #555;">👤 ${ev.assigned_team}</div>` : ''}
+            </div>`;
+          }
+
+          gridHtml += '</div>';
+        }
+        gridHtml += '</div>';
+
+        exportContainer.innerHTML = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16;">
+            <div style="font-size: 18; font-weight: 700; margin-bottom: 12;">施工日程表 · ${weekLabel}</div>
+            ${headerHtml}
+            ${gridHtml}
+          </div>
+        `;
+
+        document.body.appendChild(exportContainer);
+        await exportAsImage(exportContainer, `calendar-${weekLabel}`);
+        document.body.removeChild(exportContainer);
         message.success('图片导出成功');
       } catch (e) {
         message.error('导出失败，请重试');
@@ -113,7 +204,7 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
         setExporting(false);
       }
     },
-  }), [readOnly, schedule, currentWeekStart, createForm]);
+  }), [readOnly, schedule, currentWeekStart, createForm, weatherMap, taskColorMap]);
 
   // Mobile dimensions
   const TIME_AXIS_WIDTH = isMobile ? 36 : 48;
@@ -132,10 +223,6 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
     api.getTasks().then(setTasks).catch(() => setTasks([]));
     api.getPersons().then(setPersons).catch(() => setPersons([]));
   }, []);
-
-  // Build task color lookup map
-  const taskColorMap: Record<string, string> = {};
-  (Array.isArray(tasks) ? tasks : []).forEach(t => { if (t.color) taskColorMap[t.id] = t.color; });
 
   // Auto-scroll to 8am
   const scrollTargetRef = useRef<number | null>(null);
@@ -165,9 +252,6 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
   const visibleDates = (schedule?.dates || []).slice(0, visibleDays);
   const today = localDateString(new Date());
   const todayIndex = visibleDates.indexOf(today);
-
-  const weatherMap: Record<string, any> = {};
-  (Array.isArray(weather) ? weather : []).forEach(w => { weatherMap[w.date] = w; });
 
   const dayNames = isMobile ? dayNamesShort : dayNamesFull;
 
@@ -338,6 +422,107 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
 
   const totalDays = visibleDates.length;
 
+  // Local export handler for mobile (uses the ref-exposed method)
+  const handleExportMobile = async () => {
+    try {
+      setExporting(true);
+      // For export, always use full 7 days regardless of visibleDays prop
+      const allDates = (schedule?.dates || []);
+      const weekLabel = dayjs(currentWeekStart || allDates[0]).format('YYYY-MM-DD');
+
+      // Create a hidden export container with full 7-day calendar
+      const exportContainer = document.createElement('div');
+      exportContainer.id = 'temp-export-container';
+      exportContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 1400px; background: #fff;';
+
+      const todayLocal = localDateString(new Date());
+      const dayNamesExport = dayNamesFull;
+      const PX_PER_HOUR_EXPORT = 50;
+      const TIME_AXIS_WIDTH_EXPORT = 48;
+
+      // Header row
+      let headerHtml = `<div style="display: flex; background: #fafbfc; border-bottom: 2px solid #e8e8e8;">`;
+      headerHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc;"></div>`;
+      for (let i = 0; i < 7; i++) {
+        const date = allDates[i] || '';
+        const d = new Date(date);
+        const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+        const isToday = date === todayLocal;
+        const w = weatherMap[date];
+        headerHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; text-align: center; padding: 6px 0;">
+          <div style="font-weight: 600; font-size: 14; color: ${isToday ? '#1890ff' : '#1a1a2e'};">
+            ${dayNamesExport[i]} <span style="color: #999; font-weight: 400; font-size: 12;">${dateStr}</span>
+            ${isToday ? '<span style="color: #ff4d4f; font-size: 11;"> 今天</span>' : ''}
+          </div>
+          ${w ? `<div style="font-size: 12; color: #888;">${w.icon} ${w.description} ${w.tempMin}°/${w.tempMax}°</div>` : ''}
+        </div>`;
+      }
+      headerHtml += '</div>';
+
+      // Calendar grid
+      let gridHtml = `<div style="display: flex;">`;
+      gridHtml += `<div style="width: ${TIME_AXIS_WIDTH_EXPORT}px; background: #fafbfc; border-right: 1px solid #e8e8e8;">`;
+      for (let h = 0; h < 24; h++) {
+        gridHtml += `<div style="font-size: 8; color: #bbb; text-align: right; padding-right: 4; padding-top: 1; height: ${PX_PER_HOUR_EXPORT}px;">${String(h).padStart(2, '0')}</div>`;
+      }
+      gridHtml += '</div>';
+
+      for (let i = 0; i < 7; i++) {
+        const date = allDates[i] || '';
+        const events = schedule?.events?.[date] || [];
+        const w = weatherMap[date];
+        const isRainy = w?.outdoorWarning;
+        const isToday = date === todayLocal;
+
+        gridHtml += `<div style="flex: 1; border-right: ${i < 6 ? '1px solid #e8e8e8' : 'none'}; position: relative; height: ${24 * PX_PER_HOUR_EXPORT}px; background: ${isRainy ? '#fff8f0' : isToday ? '#f8faff' : 'transparent'};">`;
+
+        // Hour lines
+        for (let h = 0; h < 24; h++) {
+          gridHtml += `<div style="position: absolute; top: ${h * PX_PER_HOUR_EXPORT}px; left: 0; right: 0; border-top: 1px dashed #f0f0f0;"></div>`;
+        }
+
+        // Events
+        for (const ev of events) {
+          const [startH, startM] = ev.start_time.split(':').map(Number);
+          const [endH, endM] = ev.end_time.split(':').map(Number);
+          const startVal = startH + startM / 60;
+          const endVal = endH + endM / 60;
+          const topPx = startVal * PX_PER_HOUR_EXPORT;
+          const heightPx = Math.max(28, (endVal - startVal) * PX_PER_HOUR_EXPORT);
+          const taskColor = ev.task_id ? taskColorMap[ev.task_id] : undefined;
+          const bgColor = taskColor || '#e8f4fd';
+
+          gridHtml += `<div style="position: absolute; left: 4; right: 4; top: ${topPx}px; height: ${heightPx}px; background: ${bgColor}; border-radius: 6; padding: 4 8; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="font-size: 11; font-weight: 600; color: #1a1a2e;">${ev.title}</div>
+            <div style="font-size: 9; color: #666;">${ev.start_time}-${ev.end_time}</div>
+            ${ev.location ? `<div style="font-size: 9; color: #888;">📍 ${ev.location}</div>` : ''}
+            ${ev.assigned_team ? `<div style="font-size: 9; color: #555;">👤 ${ev.assigned_team}</div>` : ''}
+          </div>`;
+        }
+
+        gridHtml += '</div>';
+      }
+      gridHtml += '</div>';
+
+      exportContainer.innerHTML = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16;">
+          <div style="font-size: 18; font-weight: 700; margin-bottom: 12;">施工日程表 · ${weekLabel}</div>
+          ${headerHtml}
+          ${gridHtml}
+        </div>
+      `;
+
+      document.body.appendChild(exportContainer);
+      await exportAsImage(exportContainer, `calendar-${weekLabel}`);
+      document.body.removeChild(exportContainer);
+      message.success('图片导出成功');
+    } catch (e) {
+      message.error('导出失败，请重试');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Navigation bar - only for mobile or when not hidden
   const navBar = hideDesktopNav ? null : isMobile ? (
     <div style={{
@@ -360,7 +545,7 @@ export const WeekCalendar = forwardRef<WeekCalendarRef, WeekCalendarProps>(funct
         <RightOutlined style={{ fontSize: 10 }} />
       </Button>
       <div style={{ flex: 1 }} />
-      <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} loading={exporting} disabled />
+      <Button size="small" icon={<DownloadOutlined />} style={{ borderRadius: 8, background: '#f5f5f5', border: '1px solid #d9d9d9', height: 28 }} onClick={handleExportMobile} loading={exporting} />
       {!readOnly && (
         <Button size="small" type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, background: '#52c41a', border: 'none' }} onClick={() => openCreateModal(todayIndex >= 0 ? visibleDates[todayIndex] : visibleDates[0])}>
           添加
